@@ -11,15 +11,8 @@ export default {
 
     theme: {
         extend: {
-            colors: {
-                'cod-gray': '#060606',
-                'flamingo': '#f47034',
-                'pampas': '#f3f1ed',
-                'boulder': '#7c7c7c',
-                'flamingo-dark': '#d95f25', // para hover
-            },
             fontFamily: {
-                sans: ['Inter', ...defaultTheme.fontFamily.sans],
+                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
         },
     },
