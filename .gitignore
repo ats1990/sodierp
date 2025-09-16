@@ -1,26 +1,47 @@
-# Laravel padrão
-/vendor
-/node_modules
+# Laravel
+/vendor/
+/node_modules/
 /public/storage
 /storage/*.key
 .env
-.env.backup
-Homestead.yaml
+.env.*
+.phpunit.result.cache
 Homestead.json
+Homestead.yaml
 npm-debug.log
 yarn-error.log
-.idea
-/.vscode
-.DS_Store
 
-# Cache e logs
-/storage/logs/*
+# Compilados e caches
+/public/build
+/public/hot
+/public/mix-manifest.json
+/public/js
+/public/css
+/public/assets
 /storage/framework/cache/*
 /storage/framework/sessions/*
 /storage/framework/views/*
+/storage/logs/*
+/bootstrap/cache/*.php
 
-# Arquivos de build
-/public/hot
-/public/js/*.map
-/public/css/*.map
-/public/build
+# IDEs e SO
+.idea
+.vscode
+*.sublime-workspace
+*.sublime-project
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs e dumps
+*.log
+*.sql
+*.sqlite
