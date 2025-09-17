@@ -14,8 +14,23 @@ export default {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
+            colors: {
+                brand: '#fb6a28',
+                'brand-dark': '#140c0b',
+            },
         },
     },
 
-    plugins: [forms],
+    corePlugins: {},
+
+    plugins: [
+        forms,
+        function ({ addUtilities }) {
+            addUtilities({
+                '[x-cloak]': {
+                    display: 'none !important',
+                },
+            });
+        },
+    ],
 };

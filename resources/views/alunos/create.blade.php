@@ -1,399 +1,604 @@
-@extends('layouts.app')
+<x-guest-layout>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <div x-data="wizard()" class="w-full max-w-full mx-auto p-8 bg-white rounded-xl shadow-lg space-y-6">
+        <form id="triagemForm" action="{{ route('aluno.store') }}" method="POST">
+            @csrf
+            <!-- Step 1: DADOS PESSOAIS DO(A) JOVEM -->
+            <div x-show="step === 1" x-cloak x-transition>
+                <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">
+                    1 - DADOS PESSOAIS DO(A) JOVEM
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-@section('content')
-<div class="container">
-    <form action="{{ route('ficha.store') }}" method="POST">
-        @csrf
+                    <!-- Nome completo -->
 
-        <!-- 1- DADOS PESSOAIS DO(A) JOVEM -->
-        <h2>1- DADOS PESSOAIS DO(A) JOVEM</h2>
-        <div class="form-group">
-            <label for="nomeCompleto">Nome completo:</label>
-            <input type="text" id="nomeCompleto" name="nomeCompleto" required>
-        </div>
-        <div class="form-group">
-            <label for="nomeSocial">Nome social:</label>
-            <input type="text" id="nomeSocial" name="nomeSocial">
-        </div>
+                    <div>
+                        <label for="nomeCompleto" class="block font-medium">Nome completo:</label>
+                        <input type="text" id="nomeCompleto" name="nomeCompleto" required
+                            class="mt-1 block w-full border rounded p-2">
+                    </div>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label for="dataNascimento">Data de nascimento:</label>
-                <input type="date" id="dataNascimento" name="dataNascimento" required>
-            </div>
-            <div class="form-group">
-                <label for="idade">Idade:</label>
-                <input type="number" id="idade" name="idade" min="0" max="120" required>
-            </div>
-        </div>
+                    <!-- Nome social -->
+                    <div>
+                        <label for="nomeSocial" class="block font-medium">Nome social:</label>
+                        <input type="text" id="nomeSocial" name="nomeSocial"
+                            class="mt-1 block w-full border rounded p-2">
+                    </div>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label for="cpf">CPF:</label>
-                <input type="text" id="cpf" name="cpf" pattern="\d{3}\.\d{3}\.\d{3}-\d{2}" placeholder="000.000.000-00" required>
-            </div>
-            <div class="form-group">
-                <label for="rg">RG:</label>
-                <input type="text" id="rg" name="rg" required>
-            </div>
-        </div>
+                    <!-- Data de nascimento -->
+                    <div>
+                        <label for="dataNascimento" class="block font-medium">Data de nascimento:</label>
+                        <input type="date" id="dataNascimento" name="dataNascimento" required
+                            class="mt-1 block w-full border rounded p-2">
+                    </div>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label>Tem Carteira de Trabalho?</label>
-                <div class="radio-group">
-                    <input type="radio" id="ctpsSim" name="carteiraTrabalho" value="Sim" required>
-                    <label for="ctpsSim">Sim</label>
-                    <input type="radio" id="ctpsNao" name="carteiraTrabalho" value="Não">
-                    <label for="ctpsNao">Não</label>
+                    <!-- Idade -->
+                    <div>
+                        <label for="idade" class="block font-medium">Idade:</label>
+                        <input type="number" id="idade" name="idade" min="0" class="mt-1 block w-full border rounded p-2">
+                    </div>
+
+                    <!-- CPF -->
+                    <div>
+                        <label for="cpf" class="block font-medium">CPF:</label>
+                        <input type="text" id="cpf" name="cpf" placeholder="000.000.000-00"
+                            class="mt-1 block w-full border rounded p-2">
+                    </div>
+
+                    <!-- RG -->
+                    <div>
+                        <label for="rg" class="block font-medium">RG:</label>
+                        <input type="text" id="rg" name="rg" class="mt-1 block w-full border rounded p-2">
+                    </div>
+
+                    <!-- Tem Carteira de Trabalho? -->
+                    <div>
+                        <label class="block font-medium">Tem Carteira de Trabalho?</label>
+                        <div class="flex gap-4 mt-1">
+                            <label><input type="radio" name="carteiraTrabalho" value="sim"> Sim</label>
+                            <label><input type="radio" name="carteiraTrabalho" value="nao"> Não</label>
+                        </div>
+                    </div>
+
+                    <!-- Já trabalhou? -->
+                    <div>
+                        <label class="block font-medium">Já trabalhou?</label>
+                        <div class="flex gap-4 mt-1">
+                            <label><input type="radio" name="jaTrabalhou" value="sim"> Sim</label>
+                            <label><input type="radio" name="jaTrabalhou" value="nao"> Não</label>
+                        </div>
+                    </div>
+
+                    <!-- Carteira de Trabalho assinada? -->
+                    <div>
+                        <label class="block font-medium">Carteira de Trabalho assinada?</label>
+                        <div class="flex gap-4 mt-1">
+                            <label><input type="radio" name="ctpsAssinada" value="sim"> Sim</label>
+                            <label><input type="radio" name="ctpsAssinada" value="nao"> Não</label>
+                        </div>
+                    </div>
+
+                    <!-- Qual função? -->
+                    <div class="md:col-span-2">
+                        <label for="qualFuncao" class="block font-medium">Qual função?</label>
+                        <input type="text" id="qualFuncao" name="qualFuncao" class="mt-1 block w-full border rounded p-2">
+                    </div>
+
                 </div>
             </div>
-            <div class="form-group">
-                <label>Já trabalhou?</label>
-                <div class="radio-group">
-                    <input type="radio" id="jaTrabalhouSim" name="jaTrabalhou" value="Sim" required>
-                    <label for="jaTrabalhouSim">Sim</label>
-                    <input type="radio" id="jaTrabalhouNao" name="jaTrabalhou" value="Não">
-                    <label for="jaTrabalhouNao">Não</label>
+
+            <!-- STEP 2: ENDEREÇO -->
+            <div x-show="step === 2" x-cloak x-transition>
+                <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">2 - ENDEREÇO</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" name="cep" placeholder="CEP" class="border rounded p-2">
+                    <input type="text" name="rua" placeholder="Rua/Av." class="border rounded p-2">
+                    <input type="text" name="numero" placeholder="N°" class="border rounded p-2">
+                    <input type="text" name="complemento" placeholder="Compl." class="border rounded p-2">
+                    <input type="text" name="bairro" placeholder="Bairro" class="border rounded p-2">
+                    <input type="text" name="cidade" placeholder="Cidade" class="border rounded p-2">
+                    <select name="uf" class="border rounded p-2">
+                        <option value="">UF</option>
+                        @foreach(['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] as $uf)
+                        <option value="{{ $uf }}">{{ $uf }}</option>
+                        @endforeach
+                    </select>
+                    <input type="text" name="telefone" placeholder="Tel." class="border rounded p-2">
+                    <input type="text" name="celular" placeholder="Cel." class="border rounded p-2">
+                    <input type="email" name="email" placeholder="E-mail" class="md:col-span-2 border rounded p-2">
                 </div>
             </div>
-        </div>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label>Carteira de Trabalho assinada?</label>
-                <div class="radio-group">
-                    <input type="radio" id="ctpsAssinadaSim" name="ctpsAssinada" value="Sim">
-                    <label for="ctpsAssinadaSim">Sim</label>
-                    <input type="radio" id="ctpsAssinadaNao" name="ctpsAssinada" value="Não">
-                    <label for="ctpsAssinadaNao">Não</label>
+            <!-- STEP 3: ESCOLARIDADE -->
+            <div x-show="step === 3" x-cloak x-transition>
+                <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">3 - ESCOLARIDADE</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" name="escola" placeholder="Escola" class="border rounded p-2">
+                    <select name="ano" class="border rounded p-2">
+                        <option value="">Ano</option>
+                        <option value="1º">1º</option>
+                        <option value="2º">2º</option>
+                        <option value="3º">3º</option>
+                        <option value="9º">9º</option>
+                    </select>
+                    <input type="text" name="periodo" placeholder="Período" class="border rounded p-2">
+                    <div>
+                        <label>Concluído?</label>
+                        <label><input type="radio" name="concluido" value="sim"> Sim</label>
+                        <label><input type="radio" name="concluido" value="nao"> Não</label>
+                    </div>
+                    <input type="text" name="anoConclusao" placeholder="Ano de Conclusão" class="border rounded p-2">
+                    <input type="text" name="cursoAtual" placeholder="Curso Atual" class="md:col-span-2 border rounded p-2">
                 </div>
             </div>
-            <div class="form-group">
-                <label for="qualFuncao">Qual função?</label>
-                <input type="text" id="qualFuncao" name="qualFuncao">
-            </div>
-        </div>
 
-        <!-- 2- ENDEREÇO -->
-        <h2>2- ENDEREÇO</h2>
-        <div class="form-group">
-            <label for="ruaAv">Rua/Av.:</label>
-            <input type="text" id="ruaAv" name="ruaAv" required>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="numero">N°:</label>
-                <input type="text" id="numero" name="numero">
-            </div>
-            <div class="form-group">
-                <label for="complemento">Compl.:</label>
-                <input type="text" id="complemento" name="complemento">
-            </div>
-            <div class="form-group">
-                <label for="cep">CEP:</label>
-                <input type="text" id="cep" name="cep" pattern="\d{5}-\d{3}" placeholder="00000-000" required>
-            </div>
-        </div>
+            <!-- Step 4 - Dados Socioeconômicos -->
+            <div x-show="step === 4" x-cloak x-transition>
+                <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">4- DADOS SOCIOECONÔMICOS</h2>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label for="cidade">Cidade:</label>
-                <input type="text" id="cidade" name="cidade" required>
-            </div>
-            <div class="form-group">
-                <label for="bairro">Bairro:</label>
-                <input type="text" id="bairro" name="bairro" required>
-            </div>
-            <div class="form-group">
-                <label for="uf">UF:</label>
-                <select id="uf" name="uf" required>
-                    <option value="">Selecione</option>
-                    @foreach(['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] as $estado)
-                        <option value="{{ $estado }}">{{ $estado }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </div>
-
-        <div class="form-row">
-            <div class="form-group">
-                <label for="tel">Tel.:</label>
-                <input type="tel" id="tel" name="tel" pattern="\d{2}\s?\d{4,5}-?\d{4}" placeholder="(XX) XXXX-XXXX">
-            </div>
-            <div class="form-group">
-                <label for="cel">Cel.:</label>
-                <input type="tel" id="cel" name="cel" pattern="\d{2}\s?\d{5}-?\d{4}" placeholder="(XX) 9XXXX-XXXX" required>
-            </div>
-            <div class="form-group">
-                <label for="rec">Rec.:</label>
-                <input type="tel" id="rec" name="rec" pattern="\d{2}\s?\d{4,5}-?\d{4}" placeholder="(XX) XXXX-XXXX">
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="email">E-Mail:</label>
-            <input type="email" id="email" name="email">
-        </div>
-
-        <!-- 3- ESCOLARIDADE -->
-        <h2>3- ESCOLARIDADE</h2>
-        <div class="form-group">
-            <label for="escola">Escola:</label>
-            <input type="text" id="escola" name="escola">
-        </div>
-
-        <div class="form-row">
-            <div class="form-group">
-                <label>Ano:</label>
-                <div class="checkbox-group">
-                    <input type="radio" id="ano9" name="anoEscolar" value="9º">
-                    <label for="ano9">9º</label>
-                    <input type="radio" id="ano1" name="anoEscolar" value="1º">
-                    <label for="ano1">1º</label>
-                    <input type="radio" id="ano2" name="anoEscolar" value="2º">
-                    <label for="ano2">2º</label>
-                    <input type="radio" id="ano3" name="anoEscolar" value="3º">
-                    <label for="ano3">3º</label>
+                <!-- Moradia -->
+                <div class="mb-4">
+                    <label class="font-semibold">Moradia:</label><br>
+                    <label><input type="radio" name="moradia" value="Própria"> Própria</label>
+                    <label><input type="radio" name="moradia" value="Cedida"> Cedida</label>
+                    <label><input type="radio" name="moradia" value="Alugada"> Alugada</label>
+                    <label><input type="radio" name="moradia" value="Financiada"> Financiada</label>
+                    <input type="text" name="moradia_porquem" placeholder="Por quem?" class="border rounded p-1 mt-1 w-full">
                 </div>
-            </div>
-            <div class="form-group">
-                <label for="periodo">Período:</label>
-                <input type="text" id="periodo" name="periodo">
-            </div>
-            <div class="form-group">
-                <label>Concluído:</label>
-                <div class="radio-group">
-                    <input type="radio" id="concluidoSim" name="concluidoEscolaridade" value="Sim">
-                    <label for="concluidoSim">Sim</label>
-                    <input type="radio" id="concluidoNao" name="concluidoEscolaridade" value="Não">
-                    <label for="concluidoNao">Não</label>
+
+                <!-- Benefícios Sociais -->
+                <div class="mb-4">
+                    <label class="font-semibold">A família recebe algum benefício social?</label><br>
+                    <label><input type="radio" name="beneficio" value="Sim"> Sim</label>
+                    <label><input type="radio" name="beneficio" value="Não"> Não</label>
+
+                    <div class="mt-2 grid grid-cols-2 gap-2">
+                        <input type="text" name="bolsa_familia" placeholder="Bolsa Família R$" class="border rounded p-1">
+                        <input type="text" name="bpc_loas" placeholder="BPC/LOAS R$" class="border rounded p-1">
+                        <input type="text" name="pensao" placeholder="Pensão Alimentícia R$" class="border rounded p-1">
+                        <input type="text" name="aux_aluguel" placeholder="Aux. Aluguel R$" class="border rounded p-1">
+                        <input type="text" name="renda_cidada" placeholder="Renda Cidadã R$" class="border rounded p-1">
+                        <input type="text" name="outros" placeholder="Outros R$" class="border rounded p-1">
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label for="anoConclusao">Ano de conclusão:</label>
-                <input type="number" id="anoConclusao" name="anoConclusao" min="1900" max="2100">
-            </div>
-        </div>
 
-        <div class="form-group">
-            <label for="cursoAtual">Está fazendo algum curso:</label>
-            <input type="text" id="cursoAtual" name="cursoAtual">
-        </div>
+                <!-- Despesas Mensais / Observações -->
+                <div class="mb-4">
+                    <label class="font-semibold">Despesas Mensais / Observações:</label>
+                    <textarea name="observacoes" placeholder="Observações..." class="border rounded p-1 w-full mt-1"></textarea>
 
-        <!-- 4- DADOS SOCIOECONÔMICOS -->
-        <h2>4- DADOS SOCIOECONÔMICOS</h2>
-        <div class="form-group">
-            <label>Moradia:</label>
-            <select name="moradia" required>
-                <option value="">Selecione</option>
-                <option value="Própria">Própria</option>
-                <option value="Cedida">Cedida</option>
-                <option value="Alugada">Alugada</option>
-                <option value="Financiada">Financiada</option>
-            </select>
-        </div>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <input type="text" name="agua" placeholder="Água R$" class="border rounded p-1">
+                        <input type="text" name="alimentacao" placeholder="Alimentação R$" class="border rounded p-1">
+                        <input type="text" name="gas" placeholder="Gás R$" class="border rounded p-1">
+                        <input type="text" name="luz" placeholder="Luz R$" class="border rounded p-1">
+                        <input type="text" name="medicamento" placeholder="Medicamento R$" class="border rounded p-1">
+                        <input type="text" name="telefone_internet" placeholder="Telefone/Internet R$" class="border rounded p-1">
+                        <input type="text" name="aluguel_financiamento" placeholder="Aluguel/Financiamento R$" class="border rounded p-1">
+                    </div>
+                </div>
 
-        <div class="form-group">
-            <label for="quemCedida">Por quem é cedida?</label>
-            <input type="text" id="quemCedida" name="quemCedida">
-        </div>
+                <!-- Tabela de Familiares -->
+                <div x-data="familyTable()" class="mt-6">
+                    <label class="font-semibold mb-2 block">Parentesco e Renda Familiar:</label>
 
-        <div class="form-group">
-            <label>Recebe benefícios sociais?</label>
-            <div class="radio-group">
-                <input type="radio" id="beneficioSim" name="recebeBeneficio" value="Sim">
-                <label for="beneficioSim">Sim</label>
-                <input type="radio" id="beneficioNao" name="recebeBeneficio" value="Não">
-                <label for="beneficioNao">Não</label>
-            </div>
-        </div>
+                    <table class="w-full border border-gray-300 text-left">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="border px-2 py-1">Parentesco</th>
+                                <th class="border px-2 py-1">Nome completo</th>
+                                <th class="border px-2 py-1">Idade</th>
+                                <th class="border px-2 py-1">Profissão</th>
+                                <th class="border px-2 py-1">Empresa</th>
+                                <th class="border px-2 py-1">Salário Base</th>
+                                <th class="border px-2 py-1">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(row, index) in rows" :key="index">
+                                <tr>
+                                    <td class="border px-2 py-1"><input type="text" x-model="row.parentesco" class="w-full border rounded p-1"></td>
+                                    <td class="border px-2 py-1"><input type="text" x-model="row.nome" class="w-full border rounded p-1"></td>
+                                    <td class="border px-2 py-1"><input type="text" x-model="row.idade" class="w-full border rounded p-1"></td>
+                                    <td class="border px-2 py-1"><input type="text" x-model="row.profissao" class="w-full border rounded p-1"></td>
+                                    <td class="border px-2 py-1"><input type="text" x-model="row.empresa" class="w-full border rounded p-1"></td>
+                                    <td class="border px-2 py-1"><input type="text" x-model="row.salario" class="w-full border rounded p-1"></td>
+                                    <td class="border px-2 py-1 text-center">
+                                        <button type="button" @click="removeRow(index)" class="px-2 py-1 bg-red-500 text-white rounded">X</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label for="bolsaFamiliaValor">Bolsa Família:</label>
-                <input type="number" id="bolsaFamiliaValor" name="bolsaFamiliaValor" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="bpcLoasValor">BPC/LOAS:</label>
-                <input type="number" id="bpcLoasValor" name="bpcLoasValor" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="pensaoAlimenticiaValor">Pensão alimentícia:</label>
-                <input type="number" id="pensaoAlimenticiaValor" name="pensaoAlimenticiaValor" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="auxAluguelValor">Auxílio aluguel:</label>
-                <input type="number" id="auxAluguelValor" name="auxAluguelValor" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="rendaCidadaValor">Renda cidadã:</label>
-                <input type="number" id="rendaCidadaValor" name="rendaCidadaValor" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="outrosBeneficiosValor">Outros:</label>
-                <input type="number" id="outrosBeneficiosValor" name="outrosBeneficiosValor" min="0" step="0.01">
-            </div>
-        </div>
+                    <button type="button" @click="addRow()" class="mt-2 px-4 py-2 bg-green-600 text-white rounded">+ Adicionar</button>
 
-        <!-- Despesas Mensais -->
-        <h3>Despesas Mensais</h3>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="agua">Água:</label>
-                <input type="number" id="agua" name="agua" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="alimentacao">Alimentação:</label>
-                <input type="number" id="alimentacao" name="alimentacao" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="gás">Gás:</label>
-                <input type="number" id="gas" name="gas" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="luz">Luz:</label>
-                <input type="number" id="luz" name="luz" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="medicamento">Medicamento:</label>
-                <input type="number" id="medicamento" name="medicamento" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="telefoneInternet">Telefone/Internet:</label>
-                <input type="number" id="telefoneInternet" name="telefoneInternet" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="aluguelFinanciamento">Aluguel/Financiamento:</label>
-                <input type="number" id="aluguelFinanciamento" name="aluguelFinanciamento" min="0" step="0.01">
-            </div>
-        </div>
-        <!-- 5- FAMÍLIA -->
-        <h2>5- COMPOSIÇÃO FAMILIAR</h2>
-        <table class="table table-bordered" id="tabelaFamilia">
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>Parentesco</th>
-                    <th>Idade</th>
-                    <th>Escolaridade</th>
-                    <th>Profissão</th>
-                    <th>Renda</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><input type="text" name="familia[0][nome]" required></td>
-                    <td><input type="text" name="familia[0][parentesco]" required></td>
-                    <td><input type="number" name="familia[0][idade]" min="0" required></td>
-                    <td><input type="text" name="familia[0][escolaridade]"></td>
-                    <td><input type="text" name="familia[0][profissao]"></td>
-                    <td><input type="number" name="familia[0][renda]" min="0" step="0.01"></td>
-                    <td><button type="button" onclick="removerLinha(this)">Remover</button></td>
-                </tr>
-            </tbody>
-        </table>
-        <button type="button" onclick="adicionarLinha()">Adicionar Membro</button>
+                    <!-- Input escondido -->
+                    <input type="hidden" name="familiares_json" id="familiaresInput">
+                </div>
 
-        <script>
-            function adicionarLinha() {
-                const table = document.getElementById('tabelaFamilia').getElementsByTagName('tbody')[0];
-                const rowCount = table.rows.length;
-                const row = table.insertRow();
-                row.innerHTML = `
-                    <td><input type="text" name="familia[${rowCount}][nome]" required></td>
-                    <td><input type="text" name="familia[${rowCount}][parentesco]" required></td>
-                    <td><input type="number" name="familia[${rowCount}][idade]" min="0" required></td>
-                    <td><input type="text" name="familia[${rowCount}][escolaridade]"></td>
-                    <td><input type="text" name="familia[${rowCount}][profissao]"></td>
-                    <td><input type="number" name="familia[${rowCount}][renda]" min="0" step="0.01"></td>
-                    <td><button type="button" onclick="removerLinha(this)">Remover</button></td>
-                `;
+
+                <!-- Step 5 - SAÚDE -->
+                <div x-show="step === 5" x-cloak x-transition>
+                    <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">5 - SAÚDE</h2>
+                    <p class="mb-4">Os dados abaixo nos ajudarão em caso de atendimento urgente e/ou emergente relacionados à saúde.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        <!-- UBS -->
+                        <div>
+                            <label class="block font-medium">Qual UBS (posto de saúde) o jovem está matriculado?</label>
+                            <input type="text" name="ubs" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Convênio médico -->
+                        <div>
+                            <label class="block font-medium">Possui convênio médico?</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="convenio" value="sim"> Sim</label>
+                                <label><input type="radio" name="convenio" value="nao"> Não</label>
+                            </div>
+                            <input type="text" name="qual_convenio" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Vacinação -->
+                        <div>
+                            <label class="block font-medium">A vacinação está em dia?</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="vacinacao" value="sim"> Sim</label>
+                                <label><input type="radio" name="vacinacao" value="nao"> Não</label>
+                            </div>
+                        </div>
+
+                        <!-- Queixa de saúde -->
+                        <div>
+                            <label class="block font-medium">Apresenta alguma queixa de saúde no momento?</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="queixa_saude" value="sim"> Sim</label>
+                                <label><input type="radio" name="queixa_saude" value="nao"> Não</label>
+                            </div>
+                            <input type="text" name="qual_queixa" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Alergia -->
+                        <div>
+                            <label class="block font-medium">Possui alguma alergia?</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="alergia" value="sim"> Sim</label>
+                                <label><input type="radio" name="alergia" value="nao"> Não</label>
+                            </div>
+                            <input type="text" name="qual_alergia" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Tratamento -->
+                        <div>
+                            <label class="block font-medium">Já fez ou faz algum tipo de tratamento?</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="tratamento" value="sim"> Sim</label>
+                                <label><input type="radio" name="tratamento" value="nao"> Não</label>
+                            </div>
+                            <input type="text" name="qual_tratamento" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Uso regular de remédio -->
+                        <div>
+                            <label class="block font-medium">Faz uso regular de algum remédio?</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="uso_remedio" value="sim"> Sim</label>
+                                <label><input type="radio" name="uso_remedio" value="nao"> Não</label>
+                            </div>
+                            <input type="text" name="qual_remedio" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Cirurgia -->
+                        <div>
+                            <label class="block font-medium">Já fez alguma cirurgia?</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="cirurgia" value="sim"> Sim</label>
+                                <label><input type="radio" name="cirurgia" value="nao"> Não</label>
+                            </div>
+                            <input type="text" name="motivo_cirurgia" placeholder="Se sim, qual o motivo?" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- PCD / Necessidade especial -->
+                        <div>
+                            <label class="block font-medium">É PCD (Pessoa Com Deficiência)?</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="pcd" value="sim"> Sim</label>
+                                <label><input type="radio" name="pcd" value="nao"> Não</label>
+                            </div>
+                            <input type="text" name="qual_pcd" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <div>
+                            <label class="block font-medium">Em função disso, possui alguma necessidade especial?</label>
+                            <input type="text" name="necessidade_especial" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Doença congênita/hereditária -->
+                        <div>
+                            <label class="block font-medium">Tem alguma doença congênita e/ou hereditária?</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="doenca_congenita" value="sim"> Sim</label>
+                                <label><input type="radio" name="doenca_congenita" value="nao"> Não</label>
+                            </div>
+                            <input type="text" name="qual_doenca_congenita" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Psicólogo/Psiquiatra -->
+                        <div>
+                            <label class="block font-medium">Está passando com psicólogo e/ou psiquiatra ou já passou?</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="psicologo" value="sim"> Sim</label>
+                                <label><input type="radio" name="psicologo" value="nao"> Não</label>
+                            </div>
+                            <input type="text" name="quando_psicologo" placeholder="Se sim, quando?" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Convulsões / epilepsia / desmaios -->
+                        <div>
+                            <label class="block font-medium">Tem ou já teve convulsões, epilepsia ou desmaios?</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="convulsao" value="sim"> Sim</label>
+                                <label><input type="radio" name="convulsao" value="nao"> Não</label>
+                            </div>
+                            <input type="text" name="quando_convulsao" placeholder="Se sim, quando?" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Histórico familiar de doenças -->
+                        <div class="md:col-span-2">
+                            <label class="block font-medium">Algum membro da família possui alguma doença congênita e/ou hereditária? (Ex. Hipertensão, hipotireoidismo, diabetes, outros)</label>
+                            <div class="flex gap-4 mt-1">
+                                <label><input type="radio" name="familia_doenca" value="sim"> Sim</label>
+                                <label><input type="radio" name="familia_doenca" value="nao"> Não</label>
+                            </div>
+                            <input type="text" name="qual_familia_doenca" placeholder="Se sim, quem?" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Medicamentos, acompanhamento e abuso de álcool/drogas -->
+                        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+
+                            <div>
+                                <label class="block font-medium">Algum membro da família faz uso de medicamentos para sintomas depressivos ou ansiosos?</label>
+                                <div class="flex gap-4 mt-1">
+                                    <label><input type="radio" name="familia_depressao" value="sim"> Sim</label>
+                                    <label><input type="radio" name="familia_depressao" value="nao"> Não</label>
+                                </div>
+                                <input type="text" name="quem_familia_depressao" placeholder="Se sim, quem?" class="mt-1 block w-full border rounded p-2">
+                            </div>
+
+                            <div>
+                                <label class="block font-medium">Está passando com algum médico especialista?</label>
+                                <div class="flex gap-4 mt-1">
+                                    <label><input type="radio" name="medico_especialista" value="sim"> Sim</label>
+                                    <label><input type="radio" name="medico_especialista" value="nao"> Não</label>
+                                </div>
+                                <input type="text" name="qual_medico_especialista" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                            </div>
+
+                            <div>
+                                <label class="block font-medium">Algum membro da família faz acompanhamento psicológico?</label>
+                                <div class="flex gap-4 mt-1">
+                                    <label><input type="radio" name="familia_psicologico" value="sim"> Sim</label>
+                                    <label><input type="radio" name="familia_psicologico" value="nao"> Não</label>
+                                </div>
+                                <input type="text" name="quem_familia_psicologico" placeholder="Se sim, quem?" class="mt-1 block w-full border rounded p-2">
+                            </div>
+
+                            <div>
+                                <label class="block font-medium">Algum membro da família faz uso abusivo de bebida alcoólica?</label>
+                                <div class="flex gap-4 mt-1">
+                                    <label><input type="radio" name="familia_alcool" value="sim"> Sim</label>
+                                    <label><input type="radio" name="familia_alcool" value="nao"> Não</label>
+                                </div>
+                                <input type="text" name="quem_familia_alcool" placeholder="Se sim, quem?" class="mt-1 block w-full border rounded p-2">
+                            </div>
+
+                            <div>
+                                <label class="block font-medium">Algum membro da família faz uso abusivo de drogas?</label>
+                                <div class="flex gap-4 mt-1">
+                                    <label><input type="radio" name="familia_drogas" value="sim"> Sim</label>
+                                    <label><input type="radio" name="familia_drogas" value="nao"> Não</label>
+                                </div>
+                                <input type="text" name="quem_familia_drogas" placeholder="Se sim, quem?" class="mt-1 block w-full border rounded p-2">
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+                <!-- Step 6 - Declaração e Consentimento -->
+                <div x-show="step === 6" x-cloak x-transition class="mb-4">
+                    <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">Declaração e Consentimento</h2>
+
+                    <div class="border rounded p-4 bg-gray-50 text-sm text-gray-700">
+                        <p class="mb-2">
+                            Declaro que as informações aqui prestadas são verdadeiras e que assumo a responsabilidade pelas mesmas, sabendo que posso ser excluído(a) da triagem se comprovada a falsidade das minhas declarações.
+                        </p>
+                        <p class="mb-2">
+                            A SODIPROM fica desde já autorizada a compartilhar os dados pessoais coletados na ficha de inscrição e ficha de saúde, com sua área interna de gestão de pessoas, com o gestor da área que deu origem à vaga, com empresas de recrutamento e seleção, com redes sociais de negócios e com empresas terceiras que fornecem licença de software para armazenamento e gestão de dados.
+                        </p>
+                        <p class="mb-2">
+                            A SODIPROM responsabiliza-se pela manutenção de medidas de segurança, técnicas e administrativas aptas a proteger os dados pessoais de acessos não autorizados e de situações acidentais ou ilícitas de destruição, perda, alteração, comunicação ou qualquer forma de tratamento inadequado ou ilícito.
+                        </p>
+                        <p class="mb-2">
+                            Em conformidade ao artigo 48 da Lei nº 13.709, a SODIPROM comunicará ao titular e à Autoridade Nacional de Proteção de Dados – ANPD a ocorrência de incidente de segurança que possa acarretar risco ou dano relevante ao titular do dado.
+                        </p>
+                    </div>
+
+                    <div class="mt-2">
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" name="declaracao_consentimento" required class="form-checkbox h-5 w-5 text-blue-600">
+                            Li e concordo com a declaração acima
+                        </label>
+                    </div>
+                </div>
+
+                <!-- STEP 7: ASSINATURA E FINALIZAÇÃO -->
+                <div x-show="step === 7" x-cloak x-transition class="space-y-6">
+
+                    <!-- Assinatura -->
+                    <div class="flex flex-col items-center">
+                        <label class="block font-medium mb-1">Assinatura do responsável:</label>
+                        <canvas id="assinaturaCanvas" width="600" height="200" class="border rounded" style="max-width:100%; height:auto;"></canvas>
+                        <button type="button" @click="limparAssinatura()" class="mt-2 px-4 py-2 bg-red-500 text-white rounded">Limpar</button>
+                        <input type="hidden" name="assinatura" id="assinaturaInput">
+                    </div>
+
+                </div>
+
+
+                <!-- Navegação -->
+                <div class="flex justify-between mt-6">
+                    <button type="button" @click="prevStep()" x-show="step > 1" class="px-4 py-2 bg-gray-500 text-white rounded">
+                        Anterior
+                    </button>
+
+                    <button type="button" @click="nextStep()" x-show="step < 7" class="px-4 py-2 bg-blue-500 text-white rounded">
+                        Próximo
+                    </button>
+
+                    <button type="submit" @click="salvarAssinatura()" x-show="step === 7" class="px-4 py-2 bg-brand hover:bg-brand-dark text-white rounded">
+                        Cadastrar
+                    </button>
+                </div>
+        </form>
+    </div>
+
+    <!-- SCRIPT ALPINE -->
+    <script>
+        window.wizard = function() {
+            return {
+                step: 1,
+                nextStep() {
+                    if (this.step < 7) this.step++
+                },
+                prevStep() {
+                    if (this.step > 1) this.step--
+                },
+                salvarAssinatura() {
+                    const canvas = document.getElementById('assinaturaCanvas');
+                    if (canvas) document.getElementById('assinaturaInput').value = canvas.toDataURL();
+                    this.atualizarFamiliaresInput();
+                },
+                limparAssinatura() {
+                    const canvas = document.getElementById('assinaturaCanvas');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                },
+                atualizarFamiliaresInput() {
+                    const familyDiv = document.querySelector('[x-data="familyTable()"]');
+                    if (familyDiv && familyDiv.__x) document.getElementById('familiaresInput').value = JSON.stringify(familyDiv.__x.$data.rows);
+                }
+            }
+        }
+
+        window.familyTable = function() {
+            return {
+                rows: [],
+                addRow() {
+                    this.rows.push({
+                        parentesco: '',
+                        nome: '',
+                        idade: '',
+                        profissao: '',
+                        empresa: '',
+                        salario: ''
+                    });
+                    this.updateInput();
+                },
+                removeRow(i) {
+                    this.rows.splice(i, 1);
+                    this.updateInput();
+                },
+                updateInput() {
+                    const input = document.getElementById('familiaresInput');
+                    if (input) input.value = JSON.stringify(this.rows);
+                }
+            }
+        }
+
+        // Canvas de assinatura
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('assinaturaCanvas');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            let drawing = false;
+            let lastX = 0;
+            let lastY = 0;
+
+            function getPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                if (e.touches && e.touches.length > 0) {
+                    return {
+                        x: e.touches[0].clientX - rect.left,
+                        y: e.touches[0].clientY - rect.top
+                    };
+                } else {
+                    return {
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top
+                    };
+                }
             }
 
-            function removerLinha(btn) {
-                const row = btn.parentNode.parentNode;
-                row.parentNode.removeChild(row);
+            function start(e) {
+                drawing = true;
+                const pos = getPos(e);
+                lastX = pos.x;
+                lastY = pos.y;
+                e.preventDefault();
             }
-        </script>
 
-        <!-- 6- SAÚDE -->
-        <h2>6- SAÚDE</h2>
-        <div class="form-group">
-            <label>Possui algum problema de saúde?</label>
-            <div class="checkbox-group">
-                <input type="checkbox" id="saudeSim" name="problemaSaude[]" value="Sim">
-                <label for="saudeSim">Sim</label>
-                <input type="checkbox" id="saudeNao" name="problemaSaude[]" value="Não">
-                <label for="saudeNao">Não</label>
-            </div>
-        </div>
+            function end(e) {
+                drawing = false;
+                e.preventDefault();
+            }
 
-        <div class="form-group">
-            <label for="qualProblema">Qual problema?</label>
-            <input type="text" id="qualProblema" name="qualProblema">
-        </div>
+            function move(e) {
+                if (!drawing) return;
+                const pos = getPos(e);
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                lastX = pos.x;
+                lastY = pos.y;
+                e.preventDefault();
+            }
 
-        <div class="form-group">
-            <label>Acompanhamento médico/psicológico?</label>
-            <div class="checkbox-group">
-                <input type="checkbox" id="acomMedico" name="acomanhamento[]" value="Médico">
-                <label for="acomMedico">Médico</label>
-                <input type="checkbox" id="acomPsico" name="acomanhamento[]" value="Psicológico">
-                <label for="acomPsico">Psicológico</label>
-                <input type="checkbox" id="acomNenhum" name="acomanhamento[]" value="Nenhum">
-                <label for="acomNenhum">Nenhum</label>
-            </div>
-        </div>
+            // Eventos mouse
+            canvas.addEventListener('mousedown', start);
+            canvas.addEventListener('mousemove', move);
+            canvas.addEventListener('mouseup', end);
+            canvas.addEventListener('mouseout', end);
 
-        <!-- 7- ASSINATURA E DECLARAÇÃO -->
-        <h2>7- ASSINATURA E DECLARAÇÃO</h2>
-        <p>Declaro que as informações prestadas são verdadeiras.</p>
+            // Eventos touch
+            canvas.addEventListener('touchstart', start);
+            canvas.addEventListener('touchmove', move);
+            canvas.addEventListener('touchend', end);
+            canvas.addEventListener('touchcancel', end);
 
-        <div class="form-group">
-            <label>Assinatura:</label>
-            <canvas id="assinatura" style="border:1px solid #000; width:400px; height:150px;"></canvas>
-            <input type="hidden" name="assinaturaBase64" id="assinaturaBase64">
-            <button type="button" onclick="limparCanvas()">Limpar</button>
-        </div>
+            // Configurações do canvas
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000';
 
-        <button type="submit">Salvar Ficha</button>
-        <button type="reset">Limpar Campos</button>
-    </form>
-</div>
-
-<script>
-    // Canvas assinatura
-    const canvas = document.getElementById('assinatura');
-    const ctx = canvas.getContext('2d');
-    let desenhando = false;
-
-    canvas.addEventListener('mousedown', () => desenhando = true);
-    canvas.addEventListener('mouseup', () => desenhando = false);
-    canvas.addEventListener('mouseleave', () => desenhando = false);
-    canvas.addEventListener('mousemove', desenhar);
-
-    function desenhar(e) {
-        if (!desenhando) return;
-        const rect = canvas.getBoundingClientRect();
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#000';
-        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-    }
-
-    function limparCanvas() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.beginPath();
-    }
-
-    // Enviar assinatura como Base64
-    document.querySelector('form').addEventListener('submit', function(e){
-        document.getElementById('assinaturaBase64').value = canvas.toDataURL();
-    });
-</script>
-@endsection
+            // Garantir que familiaresInput seja sempre atualizado antes do submit
+            const form = document.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', () => {
+                    const familyDiv = document.querySelector('[x-data="familyTable()"]');
+                    if (familyDiv && familyDiv.__x) {
+                        document.getElementById('familiaresInput').value = JSON.stringify(familyDiv.__x.$data.rows);
+                    }
+                    if (canvas) {
+                        document.getElementById('assinaturaInput').value = canvas.toDataURL();
+                    }
+                });
+            }
+        });
+    </script>
+</x-guest-layout>

@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -10,104 +11,99 @@ return new class extends Migration
         Schema::create('alunos', function (Blueprint $table) {
             $table->id();
 
-            // 1- Dados pessoais
+            // STEP 1: DADOS PESSOAIS
             $table->string('nomeCompleto');
             $table->string('nomeSocial')->nullable();
             $table->date('dataNascimento');
-            $table->integer('idade');
-            $table->string('cpf');
-            $table->string('rg');
-            $table->string('carteiraTrabalho')->nullable();
-            $table->string('jaTrabalhou')->nullable();
-            $table->string('ctpsAssinada')->nullable();
+            $table->integer('idade')->nullable();
+            $table->string('cpf', 14)->nullable();
+            $table->string('rg', 20)->nullable();
+            $table->boolean('carteiraTrabalho')->default(false);
+            $table->boolean('jaTrabalhou')->default(false);
+            $table->boolean('ctpsAssinada')->default(false);
             $table->string('qualFuncao')->nullable();
 
-            // 2- Endereço
-            $table->string('ruaAv');
-            $table->string('numero')->nullable();
+            // STEP 2: ENDEREÇO
+            $table->string('cep', 10)->nullable();
+            $table->string('rua')->nullable();
+            $table->string('numero', 10)->nullable();
             $table->string('complemento')->nullable();
-            $table->string('cep');
-            $table->string('cidade');
-            $table->string('bairro');
-            $table->string('uf');
-            $table->string('tel')->nullable();
-            $table->string('cel');
-            $table->string('rec')->nullable();
+            $table->string('bairro')->nullable();
+            $table->string('cidade')->nullable();
+            $table->string('uf', 2)->nullable();
+            $table->string('telefone', 20)->nullable();
+            $table->string('celular', 20)->nullable();
             $table->string('email')->nullable();
 
-            // 3- Escolaridade
+            // STEP 3: ESCOLARIDADE
             $table->string('escola')->nullable();
-            $table->string('anoEscolar')->nullable();
+            $table->string('ano', 5)->nullable();
             $table->string('periodo')->nullable();
-            $table->string('concluidoEscolaridade')->nullable();
-            $table->integer('anoConclusao')->nullable();
+            $table->boolean('concluido')->default(false);
+            $table->string('anoConclusao', 4)->nullable();
             $table->string('cursoAtual')->nullable();
 
-            // 4- Dados socioeconômicos
+            // STEP 4: DADOS SOCIOECONÔMICOS
             $table->string('moradia')->nullable();
-            $table->string('quemCedida')->nullable();
-            $table->string('recebeBeneficio')->nullable();
-            $table->string('bolsaFamiliaValor')->nullable();
-            $table->string('bpcLoasValor')->nullable();
-            $table->string('pensaoAlimenticiaValor')->nullable();
-            $table->string('auxAluguelValor')->nullable();
-            $table->string('rendaCidadaValor')->nullable();
-            $table->string('outrosBeneficiosValor')->nullable();
+            $table->string('moradia_porquem')->nullable();
+            $table->boolean('beneficio')->default(false);
+            $table->decimal('bolsa_familia', 10, 2)->nullable();
+            $table->decimal('bpc_loas', 10, 2)->nullable();
+            $table->decimal('pensao', 10, 2)->nullable();
+            $table->decimal('aux_aluguel', 10, 2)->nullable();
+            $table->decimal('renda_cidada', 10, 2)->nullable();
+            $table->decimal('outros', 10, 2)->nullable();
+            $table->decimal('agua', 10, 2)->nullable();
+            $table->decimal('alimentacao', 10, 2)->nullable();
+            $table->decimal('gas', 10, 2)->nullable();
+            $table->decimal('luz', 10, 2)->nullable();
+            $table->decimal('medicamento', 10, 2)->nullable();
+            $table->decimal('telefone_internet', 10, 2)->nullable();
+            $table->decimal('aluguel_financiamento', 10, 2)->nullable();
+            $table->text('observacoes')->nullable();
 
-            // 5- Despesas mensais
-            $table->string('aguaDespesa')->nullable();
-            $table->string('alimentacaoDespesa')->nullable();
-            $table->string('gasDespesa')->nullable();
-            $table->string('luzDespesa')->nullable();
-            $table->string('medicamentoDespesa')->nullable();
-            $table->string('telefoneInternetDespesa')->nullable();
-            $table->string('aluguelFinanciamentoDespesa')->nullable();
+            // STEP 5: SAÚDE
+            $table->string('ubs')->nullable();
+            $table->boolean('convenio')->default(false);
+            $table->string('qual_convenio')->nullable();
+            $table->boolean('vacinacao')->default(false);
+            $table->boolean('queixa_saude')->default(false);
+            $table->string('qual_queixa')->nullable();
+            $table->boolean('alergia')->default(false);
+            $table->string('qual_alergia')->nullable();
+            $table->boolean('tratamento')->default(false);
+            $table->string('qual_tratamento')->nullable();
+            $table->boolean('uso_remedio')->default(false);
+            $table->string('qual_remedio')->nullable();
+            $table->boolean('cirurgia')->default(false);
+            $table->string('motivo_cirurgia')->nullable();
+            $table->boolean('pcd')->default(false);
+            $table->string('qual_pcd')->nullable();
+            $table->string('necessidade_especial')->nullable();
+            $table->boolean('doenca_congenita')->default(false);
+            $table->string('qual_doenca_congenita')->nullable();
+            $table->boolean('psicologo')->default(false);
+            $table->string('quando_psicologo')->nullable();
+            $table->boolean('convulsao')->default(false);
+            $table->string('quando_convulsao')->nullable();
+            $table->boolean('familia_doenca')->default(false);
+            $table->string('qual_familia_doenca')->nullable();
+            $table->boolean('familia_depressao')->default(false);
+            $table->string('quem_familia_depressao')->nullable();
+            $table->boolean('medico_especialista')->default(false);
+            $table->string('qual_medico_especialista')->nullable();
+            $table->boolean('familia_psicologico')->default(false);
+            $table->string('quem_familia_psicologico')->nullable();
+            $table->boolean('familia_alcool')->default(false);
+            $table->string('quem_familia_alcool')->nullable();
+            $table->boolean('familia_drogas')->default(false);
+            $table->string('quem_familia_drogas')->nullable();
 
-            // 5.1- Família (pode ter várias linhas)
-            $table->json('familia')->nullable(); // armazenar parentesco, nome, idade, profissão, empresa, salário
+            // STEP 6: DECLARAÇÃO E CONSENTIMENTO
+            $table->boolean('declaracao_consentimento')->default(false);
 
-            // 6- Saúde
-            $table->string('ubsMatriculado')->nullable();
-            $table->string('convenioMedico')->nullable();
-            $table->string('qualConvenio')->nullable();
-            $table->string('vacinacaoEmDia')->nullable();
-            $table->string('queixaSaude')->nullable();
-            $table->string('qualQueixa')->nullable();
-            $table->string('possuiAlergia')->nullable();
-            $table->string('qualAlergia')->nullable();
-            $table->string('fezTratamento')->nullable();
-            $table->string('qualTratamento')->nullable();
-            $table->string('usaRemedio')->nullable();
-            $table->string('qualRemedio')->nullable();
-            $table->string('fezCirurgia')->nullable();
-            $table->string('motivoCirurgia')->nullable();
-            $table->string('isPCD')->nullable();
-            $table->string('qualDeficiencia')->nullable();
-            $table->string('qualNecessidade')->nullable();
-            $table->string('doencaCongenita')->nullable();
-            $table->string('qualDoencaCongenita')->nullable();
-            $table->string('passouPsicologo')->nullable();
-            $table->string('quandoPsicologo')->nullable();
-            $table->string('teveConvulsoes')->nullable();
-            $table->string('quandoConvulsoes')->nullable();
-            $table->string('familiarDoencaCongenita')->nullable();
-            $table->string('quemDoencaCongenita')->nullable();
-            $table->string('familiarMedicamentoDepressao')->nullable();
-            $table->string('quemMedicamentoDepressao')->nullable();
-            $table->string('passaMedicoEspecialista')->nullable();
-            $table->string('qualMedicoEspecialista')->nullable();
-            $table->string('familiarPsicologo')->nullable();
-            $table->string('quemFamiliarPsicologo')->nullable();
-            $table->string('usoAbusivoAlcool')->nullable();
-            $table->string('quemAlcoolismo')->nullable();
-            $table->string('usoAbusivoDrogas')->nullable();
-            $table->string('quemDrogas')->nullable();
-
-            // assinatura e data
+            // STEP 7: ASSINATURA
             $table->text('assinatura')->nullable();
-            $table->string('dataDia')->nullable();
-            $table->string('dataMes')->nullable();
-            $table->string('dataAno')->nullable();
 
             $table->timestamps();
         });
