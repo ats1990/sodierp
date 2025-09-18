@@ -20,7 +20,6 @@ class Familiar extends Model
         'profissao',
         'empresa',
         'salarioBase',
-        'telefone',
     ];
 
     /**
