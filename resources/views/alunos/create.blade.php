@@ -1,87 +1,116 @@
 <x-guest-layout>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/imask"></script>
+
     <div x-data="wizard()" class="w-full max-w-full mx-auto p-8 bg-white rounded-xl shadow-lg space-y-6">
         <form id="triagemForm" action="{{ route('aluno.store') }}" method="POST">
             @csrf
+
             <!-- Step 1: DADOS PESSOAIS DO(A) JOVEM -->
-            <div x-show="step === 1" x-cloak x-transition>
+            <div x-show="step === 1" x-cloak x-transition
+                x-data="{
+        trabalhou: '{{ old('jaTrabalhou', '') }}',
+        temCT: '{{ old('carteiraTrabalho', '') }}',
+        ctAssinada: '{{ old('ctpsAssinada', '') }}'
+     }">
+
+                @if ($errors->any())
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <strong>Ops!</strong> Corrija os erros abaixo:
+                    <ul class="mt-2 list-disc list-inside">
+                        @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+                @endif
+
                 <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">
-                    1 - DADOS PESSOAIS DO(A) JOVEM
+                    Dados Pessoais do(a) Jovem
                 </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                    <!-- Nome completo -->
-
-                    <div>
-                        <label for="nomeCompleto" class="block font-medium">Nome completo:</label>
-                        <input type="text" id="nomeCompleto" name="nomeCompleto" required
-                            class="mt-1 block w-full border rounded p-2">
-                    </div>
-
-                    <!-- Nome social -->
-                    <div>
-                        <label for="nomeSocial" class="block font-medium">Nome social:</label>
-                        <input type="text" id="nomeSocial" name="nomeSocial"
-                            class="mt-1 block w-full border rounded p-2">
-                    </div>
-
-                    <!-- Data de nascimento -->
-                    <div>
-                        <label for="dataNascimento" class="block font-medium">Data de nascimento:</label>
-                        <input type="date" id="dataNascimento" name="dataNascimento" required
-                            class="mt-1 block w-full border rounded p-2">
-                    </div>
-
-                    <!-- Idade -->
-                    <div>
-                        <label for="idade" class="block font-medium">Idade:</label>
-                        <input type="number" id="idade" name="idade" min="0" class="mt-1 block w-full border rounded p-2">
-                    </div>
-
-                    <!-- CPF -->
-                    <div>
-                        <label for="cpf" class="block font-medium">CPF:</label>
-                        <input type="text" id="cpf" name="cpf" placeholder="000.000.000-00"
-                            class="mt-1 block w-full border rounded p-2">
-                    </div>
-
-                    <!-- RG -->
-                    <div>
-                        <label for="rg" class="block font-medium">RG:</label>
-                        <input type="text" id="rg" name="rg" class="mt-1 block w-full border rounded p-2">
-                    </div>
-
-                    <!-- Tem Carteira de Trabalho? -->
-                    <div>
-                        <label class="block font-medium">Tem Carteira de Trabalho?</label>
-                        <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="carteiraTrabalho" value="sim"> Sim</label>
-                            <label><input type="radio" name="carteiraTrabalho" value="nao"> Não</label>
+                <div class="space-y-4">
+                    <!-- Linha 1: Nome completo | Nome Social -->
+                    <div class="flex space-x-4">
+                        <div class="flex-1">
+                            <label for="nomeCompleto" class="block font-medium">Nome completo</label>
+                            <input type="text" id="nomeCompleto" name="nomeCompleto" value="{{ old('nomeCompleto') }}"
+                                class="w-full border rounded px-3 py-2 text-sm">
+                        </div>
+                        <div class="flex-1">
+                            <label for="nomeSocial" class="block font-medium">Nome Social</label>
+                            <input type="text" id="nomeSocial" name="nomeSocial" value="{{ old('nomeSocial') }}"
+                                class="w-full border rounded px-3 py-2 text-sm">
                         </div>
                     </div>
 
-                    <!-- Já trabalhou? -->
-                    <div>
-                        <label class="block font-medium">Já trabalhou?</label>
-                        <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="jaTrabalhou" value="sim"> Sim</label>
-                            <label><input type="radio" name="jaTrabalhou" value="nao"> Não</label>
+                    <!-- Linha 2: Data de Nascimento | Idade -->
+                    <div class="flex space-x-4">
+                        <div class="flex-1">
+                            <label for="dataNascimento" class="block font-medium">Data de Nascimento</label>
+                            <input type="date" id="dataNascimento" name="dataNascimento" value="{{ old('dataNascimento') }}"
+                                class="w-full border rounded px-3 py-2 text-sm">
+                        </div>
+                        <div class="flex-1">
+                            <label for="idade" class="block font-medium">Idade</label>
+                            <input type="number" id="idade" name="idade" value="{{ old('idade') }}"
+                                class="w-full border rounded px-3 py-2 text-sm">
                         </div>
                     </div>
 
-                    <!-- Carteira de Trabalho assinada? -->
-                    <div>
-                        <label class="block font-medium">Carteira de Trabalho assinada?</label>
-                        <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="ctpsAssinada" value="sim"> Sim</label>
-                            <label><input type="radio" name="ctpsAssinada" value="nao"> Não</label>
+                    <!-- Linha 3: CPF | RG -->
+                    <div class="flex space-x-4">
+                        <div class="flex-1">
+                            <label for="cpf" class="block font-medium">CPF</label>
+                            <input type="text" id="cpf" name="cpf" value="{{ old('cpf') }}"
+                                class="w-full border rounded px-3 py-2 text-sm">
+                        </div>
+                        <div class="flex-1">
+                            <label for="rg" class="block font-medium">RG</label>
+                            <input type="text" id="rg" name="rg" value="{{ old('rg') }}"
+                                class="w-full border rounded px-3 py-2 text-sm">
                         </div>
                     </div>
 
-                    <!-- Qual função? -->
-                    <div class="md:col-span-2">
-                        <label for="qualFuncao" class="block font-medium">Qual função?</label>
-                        <input type="text" id="qualFuncao" name="qualFuncao" class="mt-1 block w-full border rounded p-2">
+                    <!-- Linha 4: Já trabalhou | Tem Carteira | CT assinada -->
+                    <div class="flex space-x-4">
+                        <div class="flex-1">
+                            <label for="jaTrabalhou" class="block font-medium">Já trabalhou?</label>
+                            <select id="jaTrabalhou" name="jaTrabalhou" x-model="trabalhou"
+                                class="w-full border rounded px-3 py-2 text-sm">
+                                <option value="">Selecione</option>
+                                <option value="sim">Sim</option>
+                                <option value="nao">Não</option>
+                            </select>
+                        </div>
+
+                        <div class="flex-1" x-show="trabalhou === 'sim'" x-transition>
+                            <label for="carteiraTrabalho" class="block font-medium">Tem CT?</label>
+                            <select id="carteiraTrabalho" name="carteiraTrabalho" x-model="temCT"
+                                class="w-full border rounded px-3 py-2 text-sm">
+                                <option value="">Selecione</option>
+                                <option value="sim">Sim</option>
+                                <option value="nao">Não</option>
+                            </select>
+                        </div>
+
+                        <div class="flex-1" x-show="temCT === 'sim'" x-transition>
+                            <label for="ctpsAssinada" class="block font-medium">CT assinada?</label>
+                            <select id="ctpsAssinada" name="ctpsAssinada" x-model="ctAssinada"
+                                class="w-full border rounded px-3 py-2 text-sm">
+                                <option value="">Selecione</option>
+                                <option value="sim">Sim</option>
+                                <option value="nao">Não</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Qual Função -->
+                    <div class="mt-4" x-show="ctAssinada === 'sim'" x-transition>
+                        <label for="qualFuncao" class="block font-medium">Qual Função?</label>
+                        <input type="text" id="qualFuncao" name="qualFuncao" value="{{ old('qualFuncao') }}"
+                            class="w-full border rounded px-3 py-2 text-sm">
                     </div>
 
                 </div>
@@ -91,68 +120,89 @@
             <div x-show="step === 2" x-cloak x-transition>
                 <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">2 - ENDEREÇO</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" name="cep" placeholder="CEP" class="border rounded p-2">
-                    <input type="text" name="rua" placeholder="Rua/Av." class="border rounded p-2">
-                    <input type="text" name="numero" placeholder="N°" class="border rounded p-2">
-                    <input type="text" name="complemento" placeholder="Compl." class="border rounded p-2">
-                    <input type="text" name="bairro" placeholder="Bairro" class="border rounded p-2">
-                    <input type="text" name="cidade" placeholder="Cidade" class="border rounded p-2">
-                    <select name="uf" class="border rounded p-2">
+                    <input type="text" id="cep" name="cep" value="{{ old('cep') }}" placeholder="CEP" class="border rounded p-2">
+                    <input type="text" id="rua" name="rua" value="{{ old('rua') }}" placeholder="Rua/Av." class="border rounded p-2">
+                    <input type="text" id="numero" name="numero" value="{{ old('numero') }}" placeholder="N°" class="border rounded p-2">
+                    <input type="text" id="complemento" name="complemento" value="{{ old('complemento') }}" placeholder="Compl." class="border rounded p-2">
+                    <input type="text" id="bairro" name="bairro" value="{{ old('bairro') }}" placeholder="Bairro" class="border rounded p-2">
+                    <input type="text" id="cidade" name="cidade" value="{{ old('cidade') }}" placeholder="Cidade" class="border rounded p-2">
+                    <select id="uf" name="uf" class="border rounded p-2">
                         <option value="">UF</option>
                         @foreach(['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] as $uf)
-                        <option value="{{ $uf }}">{{ $uf }}</option>
+                        <option value="{{ $uf }}" {{ old('uf') === $uf ? 'selected' : '' }}>{{ $uf }}</option>
                         @endforeach
                     </select>
-                    <input type="text" name="telefone" placeholder="Tel." class="border rounded p-2">
-                    <input type="text" name="celular" placeholder="Cel." class="border rounded p-2">
-                    <input type="email" name="email" placeholder="E-mail" class="md:col-span-2 border rounded p-2">
+                    <input type="text" id="telefone" name="telefone" value="{{ old('telefone') }}" placeholder="Tel." class="border rounded p-2">
+                    <input type="text" id="celular" name="celular" value="{{ old('celular') }}" placeholder="Cel." class="border rounded p-2">
+                    <input type="email" id="email" name="email" value="{{ old('email') }}" placeholder="E-mail" class="md:col-span-2 border rounded p-2">
                 </div>
             </div>
 
-            <!-- STEP 3: ESCOLARIDADE -->
             <div x-show="step === 3" x-cloak x-transition>
                 <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">3 - ESCOLARIDADE</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" name="escola" placeholder="Escola" class="border rounded p-2">
-                    <select name="ano" class="border rounded p-2">
+
+                <div x-data="{ concluido: '{{ old('concluido') }}' }" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" id="escola" name="escola" value="{{ old('escola') }}" placeholder="Escola" class="border rounded p-2">
+
+                    <select id="ano" name="ano" class="border rounded p-2">
                         <option value="">Ano</option>
-                        <option value="1º">1º</option>
-                        <option value="2º">2º</option>
-                        <option value="3º">3º</option>
-                        <option value="9º">9º</option>
+                        <option value="1º" {{ old('ano') === '1º' ? 'selected' : '' }}>1º</option>
+                        <option value="2º" {{ old('ano') === '2º' ? 'selected' : '' }}>2º</option>
+                        <option value="3º" {{ old('ano') === '3º' ? 'selected' : '' }}>3º</option>
+                        <option value="9º" {{ old('ano') === '9º' ? 'selected' : '' }}>9º</option>
                     </select>
-                    <input type="text" name="periodo" placeholder="Período" class="border rounded p-2">
-                    <div>
-                        <label>Concluído?</label>
-                        <label><input type="radio" name="concluido" value="sim"> Sim</label>
-                        <label><input type="radio" name="concluido" value="nao"> Não</label>
+
+                    <div class="md:col-span-2">
+                        <input type="hidden" name="concluido" value="0">
+
+                        <label for="concluido" class="block font-medium">Concluído?</label>
+                        <div>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="concluido" value="0" class="form-radio" x-model="concluido">
+                                <span class="ml-2">Não</span>
+                            </label>
+                            <label class="inline-flex items-center ml-6">
+                                <input type="radio" name="concluido" value="1" class="form-radio" x-model="concluido">
+                                <span class="ml-2">Sim</span>
+                            </label>
+                        </div>
                     </div>
-                    <input type="text" name="anoConclusao" placeholder="Ano de Conclusão" class="border rounded p-2">
-                    <input type="text" name="cursoAtual" placeholder="Curso Atual" class="md:col-span-2 border rounded p-2">
+
+
+                    <input type="text" id="periodo" name="periodo" value="{{ old('periodo') }}" placeholder="Período"
+                        class="border rounded p-2" x-show="concluido === '0'" x-cloak>
+
+                    <input type="text" id="anoConclusao" name="anoConclusao" value="{{ old('anoConclusao') }}" placeholder="Ano de Conclusão"
+                        class="border rounded p-2" x-show="concluido === '1'" x-cloak>
+
+                    <input type="text" id="cursoAtual" name="cursoAtual" value="{{ old('cursoAtual') }}" placeholder="Curso Atual"
+                        class="md:col-span-2 border rounded p-2" x-show="concluido === '1'" x-cloak>
                 </div>
             </div>
-
             <!-- Step 4 - Dados Socioeconômicos -->
             <div x-show="step === 4" x-cloak x-transition>
                 <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">4- DADOS SOCIOECONÔMICOS</h2>
 
                 <!-- Moradia -->
-                <div class="mb-4">
+                <div class="mb-4" x-data="{ moradia: '' }">
                     <label class="font-semibold">Moradia:</label><br>
-                    <label><input type="radio" name="moradia" value="Própria"> Própria</label>
-                    <label><input type="radio" name="moradia" value="Cedida"> Cedida</label>
-                    <label><input type="radio" name="moradia" value="Alugada"> Alugada</label>
-                    <label><input type="radio" name="moradia" value="Financiada"> Financiada</label>
-                    <input type="text" name="moradia_porquem" placeholder="Por quem?" class="border rounded p-1 mt-1 w-full">
+                    <label><input type="radio" name="moradia" value="Própria" x-model="moradia"> Própria</label>
+                    <label><input type="radio" name="moradia" value="Cedida" x-model="moradia"> Cedida</label>
+                    <label><input type="radio" name="moradia" value="Alugada" x-model="moradia"> Alugada</label>
+                    <label><input type="radio" name="moradia" value="Financiada" x-model="moradia"> Financiada</label>
+
+                    <!-- Input aparece só se Alugada ou Financiada -->
+                    <input type="text" name="moradia_porquem" placeholder="Por quem?" class="border rounded p-1 mt-1 w-full" x-show="moradia === 'Cedida'">
                 </div>
 
                 <!-- Benefícios Sociais -->
-                <div class="mb-4">
+                <div class="mb-4" x-data="{ beneficio: '' }">
                     <label class="font-semibold">A família recebe algum benefício social?</label><br>
-                    <label><input type="radio" name="beneficio" value="Sim"> Sim</label>
-                    <label><input type="radio" name="beneficio" value="Não"> Não</label>
+                    <label><input type="radio" name="beneficio" value="Sim" x-model="beneficio"> Sim</label>
+                    <label><input type="radio" name="beneficio" value="Não" x-model="beneficio"> Não</label>
 
-                    <div class="mt-2 grid grid-cols-2 gap-2">
+                    <!-- Campos aparecem só se Sim -->
+                    <div class="mt-2 grid grid-cols-2 gap-2" x-show="beneficio === 'Sim'">
                         <input type="text" name="bolsa_familia" placeholder="Bolsa Família R$" class="border rounded p-1">
                         <input type="text" name="bpc_loas" placeholder="BPC/LOAS R$" class="border rounded p-1">
                         <input type="text" name="pensao" placeholder="Pensão Alimentícia R$" class="border rounded p-1">
@@ -218,6 +268,7 @@
                 </div>
 
             </div>
+
             <!-- Step 5 - SAÚDE -->
             <div x-show="step === 5" x-cloak x-transition>
                 <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">5 - SAÚDE</h2>
@@ -232,181 +283,219 @@
                     </div>
 
                     <!-- Convênio médico -->
-                    <div>
+                    <div x-data="{ convenio: '' }">
                         <label class="block font-medium">Possui convênio médico?</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="convenio" value="sim"> Sim</label>
-                            <label><input type="radio" name="convenio" value="nao"> Não</label>
+                            <label><input type="radio" name="convenio" value="sim" x-model="convenio"> Sim</label>
+                            <label><input type="radio" name="convenio" value="nao" x-model="convenio"> Não</label>
                         </div>
-                        <input type="text" name="qual_convenio" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        <input type="text" name="qual_convenio" placeholder="Se sim, qual?"
+                            class="mt-1 block w-full border rounded p-2"
+                            x-show="convenio === 'sim'" x-transition>
                     </div>
 
                     <!-- Vacinação -->
-                    <div>
+                    <div x-data="{ vacinacao: '' }">
                         <label class="block font-medium">A vacinação está em dia?</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="vacinacao" value="sim"> Sim</label>
-                            <label><input type="radio" name="vacinacao" value="nao"> Não</label>
+                            <label><input type="radio" name="vacinacao" value="sim" x-model="vacinacao"> Sim</label>
+                            <label><input type="radio" name="vacinacao" value="nao" x-model="vacinacao"> Não</label>
                         </div>
                     </div>
 
                     <!-- Queixa de saúde -->
-                    <div>
+                    <div x-data="{ queixa: '' }">
                         <label class="block font-medium">Apresenta alguma queixa de saúde no momento?</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="queixa_saude" value="sim"> Sim</label>
-                            <label><input type="radio" name="queixa_saude" value="nao"> Não</label>
+                            <label><input type="radio" name="queixa_saude" value="sim" x-model="queixa"> Sim</label>
+                            <label><input type="radio" name="queixa_saude" value="nao" x-model="queixa"> Não</label>
                         </div>
-                        <input type="text" name="qual_queixa" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        <input type="text" name="qual_queixa" placeholder="Se sim, qual?"
+                            class="mt-1 block w-full border rounded p-2"
+                            x-show="queixa === 'sim'" x-transition>
                     </div>
 
                     <!-- Alergia -->
-                    <div>
+                    <div x-data="{ alergia: '' }">
                         <label class="block font-medium">Possui alguma alergia?</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="alergia" value="sim"> Sim</label>
-                            <label><input type="radio" name="alergia" value="nao"> Não</label>
+                            <label><input type="radio" name="alergia" value="sim" x-model="alergia"> Sim</label>
+                            <label><input type="radio" name="alergia" value="nao" x-model="alergia"> Não</label>
                         </div>
-                        <input type="text" name="qual_alergia" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        <input type="text" name="qual_alergia" placeholder="Se sim, qual?"
+                            class="mt-1 block w-full border rounded p-2"
+                            x-show="alergia === 'sim'" x-transition>
                     </div>
 
                     <!-- Tratamento -->
-                    <div>
+                    <div x-data="{ tratamento: '' }">
                         <label class="block font-medium">Já fez ou faz algum tipo de tratamento?</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="tratamento" value="sim"> Sim</label>
-                            <label><input type="radio" name="tratamento" value="nao"> Não</label>
+                            <label><input type="radio" name="tratamento" value="sim" x-model="tratamento"> Sim</label>
+                            <label><input type="radio" name="tratamento" value="nao" x-model="tratamento"> Não</label>
                         </div>
-                        <input type="text" name="qual_tratamento" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        <input type="text" name="qual_tratamento" placeholder="Se sim, qual?"
+                            class="mt-1 block w-full border rounded p-2"
+                            x-show="tratamento === 'sim'" x-transition>
                     </div>
 
                     <!-- Uso regular de remédio -->
-                    <div>
+                    <div x-data="{ remedio: '' }">
                         <label class="block font-medium">Faz uso regular de algum remédio?</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="uso_remedio" value="sim"> Sim</label>
-                            <label><input type="radio" name="uso_remedio" value="nao"> Não</label>
+                            <label><input type="radio" name="uso_remedio" value="sim" x-model="remedio"> Sim</label>
+                            <label><input type="radio" name="uso_remedio" value="nao" x-model="remedio"> Não</label>
                         </div>
-                        <input type="text" name="qual_remedio" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        <input type="text" name="qual_remedio" placeholder="Se sim, qual?"
+                            class="mt-1 block w-full border rounded p-2"
+                            x-show="remedio === 'sim'" x-transition>
                     </div>
 
                     <!-- Cirurgia -->
-                    <div>
+                    <div x-data="{ cirurgia: '' }">
                         <label class="block font-medium">Já fez alguma cirurgia?</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="cirurgia" value="sim"> Sim</label>
-                            <label><input type="radio" name="cirurgia" value="nao"> Não</label>
+                            <label><input type="radio" name="cirurgia" value="sim" x-model="cirurgia"> Sim</label>
+                            <label><input type="radio" name="cirurgia" value="nao" x-model="cirurgia"> Não</label>
                         </div>
-                        <input type="text" name="motivo_cirurgia" placeholder="Se sim, qual o motivo?" class="mt-1 block w-full border rounded p-2">
+                        <input type="text" name="motivo_cirurgia" placeholder="Se sim, qual o motivo?"
+                            class="mt-1 block w-full border rounded p-2"
+                            x-show="cirurgia === 'sim'" x-transition>
                     </div>
 
-                    <!-- PCD / Necessidade especial -->
-                    <div>
+                    <div x-data="{ pcd: '' }">
+                        <!-- PCD -->
                         <label class="block font-medium">É PCD (Pessoa Com Deficiência)?</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="pcd" value="sim"> Sim</label>
-                            <label><input type="radio" name="pcd" value="nao"> Não</label>
+                            <label><input type="radio" name="pcd" value="sim" x-model="pcd"> Sim</label>
+                            <label><input type="radio" name="pcd" value="nao" x-model="pcd"> Não</label>
                         </div>
-                        <input type="text" name="qual_pcd" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+
+                        <!-- Se sim, qual? -->
+                        <div x-show="pcd === 'sim'" x-transition>
+                            <label class="block font-medium">Se sim, qual?</label>
+                            <input type="text" name="qual_pcd" class="mt-1 block w-full border rounded p-2">
+                        </div>
+
+                        <!-- Em função disso, possui alguma necessidade especial? -->
+                        <div x-show="pcd === 'sim'" x-transition>
+                            <label class="block font-medium">Em função disso, possui alguma necessidade especial?</label>
+                            <input type="text" name="necessidade_especial" class="mt-1 block w-full border rounded p-2">
+                        </div>
                     </div>
 
-                    <div>
-                        <label class="block font-medium">Em função disso, possui alguma necessidade especial?</label>
-                        <input type="text" name="necessidade_especial" class="mt-1 block w-full border rounded p-2">
-                    </div>
 
                     <!-- Doença congênita/hereditária -->
-                    <div>
+                    <div x-data="{ doenca: '' }">
                         <label class="block font-medium">Tem alguma doença congênita e/ou hereditária?</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="doenca_congenita" value="sim"> Sim</label>
-                            <label><input type="radio" name="doenca_congenita" value="nao"> Não</label>
+                            <label><input type="radio" name="doenca_congenita" value="sim" x-model="doenca"> Sim</label>
+                            <label><input type="radio" name="doenca_congenita" value="nao" x-model="doenca"> Não</label>
                         </div>
-                        <input type="text" name="qual_doenca_congenita" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                        <input type="text" name="qual_doenca_congenita" placeholder="Se sim, qual?"
+                            class="mt-1 block w-full border rounded p-2"
+                            x-show="doenca === 'sim'" x-transition>
                     </div>
 
                     <!-- Psicólogo/Psiquiatra -->
-                    <div>
+                    <div x-data="{ psicologo: '' }">
                         <label class="block font-medium">Está passando com psicólogo e/ou psiquiatra ou já passou?</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="psicologo" value="sim"> Sim</label>
-                            <label><input type="radio" name="psicologo" value="nao"> Não</label>
+                            <label><input type="radio" name="psicologo" value="sim" x-model="psicologo"> Sim</label>
+                            <label><input type="radio" name="psicologo" value="nao" x-model="psicologo"> Não</label>
                         </div>
-                        <input type="text" name="quando_psicologo" placeholder="Se sim, quando?" class="mt-1 block w-full border rounded p-2">
+                        <input type="text" name="quando_psicologo" placeholder="Se sim, quando?"
+                            class="mt-1 block w-full border rounded p-2"
+                            x-show="psicologo === 'sim'" x-transition>
                     </div>
 
                     <!-- Convulsões / epilepsia / desmaios -->
-                    <div>
+                    <div x-data="{ convulsao: '' }">
                         <label class="block font-medium">Tem ou já teve convulsões, epilepsia ou desmaios?</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="convulsao" value="sim"> Sim</label>
-                            <label><input type="radio" name="convulsao" value="nao"> Não</label>
+                            <label><input type="radio" name="convulsao" value="sim" x-model="convulsao"> Sim</label>
+                            <label><input type="radio" name="convulsao" value="nao" x-model="convulsao"> Não</label>
                         </div>
-                        <input type="text" name="quando_convulsao" placeholder="Se sim, quando?" class="mt-1 block w-full border rounded p-2">
+                        <input type="text" name="quando_convulsao" placeholder="Se sim, quando?"
+                            class="mt-1 block w-full border rounded p-2"
+                            x-show="convulsao === 'sim'" x-transition>
                     </div>
 
                     <!-- Histórico familiar de doenças -->
-                    <div class="md:col-span-2">
+                    <div x-data="{ familiaDoenca: '' }" class="md:col-span-2">
                         <label class="block font-medium">Algum membro da família possui alguma doença congênita e/ou hereditária? (Ex. Hipertensão, hipotireoidismo, diabetes, outros)</label>
                         <div class="flex gap-4 mt-1">
-                            <label><input type="radio" name="familia_doenca" value="sim"> Sim</label>
-                            <label><input type="radio" name="familia_doenca" value="nao"> Não</label>
+                            <label><input type="radio" name="familia_doenca" value="sim" x-model="familiaDoenca"> Sim</label>
+                            <label><input type="radio" name="familia_doenca" value="nao" x-model="familiaDoenca"> Não</label>
                         </div>
-                        <input type="text" name="qual_familia_doenca" placeholder="Se sim, quem?" class="mt-1 block w-full border rounded p-2">
+                        <input type="text" name="qual_familia_doenca" placeholder="Se sim, quem?"
+                            class="mt-1 block w-full border rounded p-2"
+                            x-show="familiaDoenca === 'sim'" x-transition>
                     </div>
 
-                    <!-- Medicamentos, acompanhamento e abuso de álcool/drogas -->
+                    <!-- Medicamentos e acompanhamento -->
                     <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
 
-                        <div>
+                        <div x-data="{ familiaDepressao: '' }">
                             <label class="block font-medium">Algum membro da família faz uso de medicamentos para sintomas depressivos ou ansiosos?</label>
                             <div class="flex gap-4 mt-1">
-                                <label><input type="radio" name="familia_depressao" value="sim"> Sim</label>
-                                <label><input type="radio" name="familia_depressao" value="nao"> Não</label>
+                                <label><input type="radio" name="familia_depressao" value="sim" x-model="familiaDepressao"> Sim</label>
+                                <label><input type="radio" name="familia_depressao" value="nao" x-model="familiaDepressao"> Não</label>
                             </div>
-                            <input type="text" name="quem_familia_depressao" placeholder="Se sim, quem?" class="mt-1 block w-full border rounded p-2">
+                            <input type="text" name="quem_familia_depressao" placeholder="Se sim, quem?"
+                                class="mt-1 block w-full border rounded p-2"
+                                x-show="familiaDepressao === 'sim'" x-transition>
                         </div>
 
-                        <div>
+                        <div x-data="{ medicoEspecialista: '' }">
                             <label class="block font-medium">Está passando com algum médico especialista?</label>
                             <div class="flex gap-4 mt-1">
-                                <label><input type="radio" name="medico_especialista" value="sim"> Sim</label>
-                                <label><input type="radio" name="medico_especialista" value="nao"> Não</label>
+                                <label><input type="radio" name="medico_especialista" value="sim" x-model="medicoEspecialista"> Sim</label>
+                                <label><input type="radio" name="medico_especialista" value="nao" x-model="medicoEspecialista"> Não</label>
                             </div>
-                            <input type="text" name="qual_medico_especialista" placeholder="Se sim, qual?" class="mt-1 block w-full border rounded p-2">
+                            <input type="text" name="qual_medico_especialista" placeholder="Se sim, qual?"
+                                class="mt-1 block w-full border rounded p-2"
+                                x-show="medicoEspecialista === 'sim'" x-transition>
                         </div>
 
-                        <div>
+                        <div x-data="{ familiaPsicologico: '' }">
                             <label class="block font-medium">Algum membro da família faz acompanhamento psicológico?</label>
                             <div class="flex gap-4 mt-1">
-                                <label><input type="radio" name="familia_psicologico" value="sim"> Sim</label>
-                                <label><input type="radio" name="familia_psicologico" value="nao"> Não</label>
+                                <label><input type="radio" name="familia_psicologico" value="sim" x-model="familiaPsicologico"> Sim</label>
+                                <label><input type="radio" name="familia_psicologico" value="nao" x-model="familiaPsicologico"> Não</label>
                             </div>
-                            <input type="text" name="quem_familia_psicologico" placeholder="Se sim, quem?" class="mt-1 block w-full border rounded p-2">
+                            <input type="text" name="quem_familia_psicologico" placeholder="Se sim, quem?"
+                                class="mt-1 block w-full border rounded p-2"
+                                x-show="familiaPsicologico === 'sim'" x-transition>
                         </div>
 
-                        <div>
+                        <div x-data="{ familiaAlcool: '' }">
                             <label class="block font-medium">Algum membro da família faz uso abusivo de bebida alcoólica?</label>
                             <div class="flex gap-4 mt-1">
-                                <label><input type="radio" name="familia_alcool" value="sim"> Sim</label>
-                                <label><input type="radio" name="familia_alcool" value="nao"> Não</label>
+                                <label><input type="radio" name="familia_alcool" value="sim" x-model="familiaAlcool"> Sim</label>
+                                <label><input type="radio" name="familia_alcool" value="nao" x-model="familiaAlcool"> Não</label>
                             </div>
-                            <input type="text" name="quem_familia_alcool" placeholder="Se sim, quem?" class="mt-1 block w-full border rounded p-2">
+                            <input type="text" name="quem_familia_alcool" placeholder="Se sim, quem?"
+                                class="mt-1 block w-full border rounded p-2"
+                                x-show="familiaAlcool === 'sim'" x-transition>
                         </div>
 
-                        <div>
+                        <div x-data="{ familiaDrogas: '' }">
                             <label class="block font-medium">Algum membro da família faz uso abusivo de drogas?</label>
                             <div class="flex gap-4 mt-1">
-                                <label><input type="radio" name="familia_drogas" value="sim"> Sim</label>
-                                <label><input type="radio" name="familia_drogas" value="nao"> Não</label>
+                                <label><input type="radio" name="familia_drogas" value="sim" x-model="familiaDrogas"> Sim</label>
+                                <label><input type="radio" name="familia_drogas" value="nao" x-model="familiaDrogas"> Não</label>
                             </div>
-                            <input type="text" name="quem_familia_drogas" placeholder="Se sim, quem?" class="mt-1 block w-full border rounded p-2">
+                            <input type="text" name="quem_familia_drogas" placeholder="Se sim, quem?"
+                                class="mt-1 block w-full border rounded p-2"
+                                x-show="familiaDrogas === 'sim'" x-transition>
                         </div>
 
                     </div>
 
                 </div>
             </div>
+
             <!-- Step 6 - Declaração e Consentimento -->
             <div x-show="step === 6" x-cloak x-transition class="mb-4">
                 <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">Declaração e Consentimento</h2>
@@ -460,144 +549,207 @@
         </form>
     </div>
 
-    <!-- SCRIPT ALPINE -->
     <script>
         window.wizard = function() {
             return {
+                // ======= Wizard =======
                 step: 1,
                 nextStep() {
-                    if (this.step < 7) this.step++
+                    if (this.step < 7) this.step++;
                 },
                 prevStep() {
-                    if (this.step > 1) this.step--
+                    if (this.step > 1) this.step--;
                 },
-                salvarAssinatura() {
-                    const canvas = document.getElementById('assinaturaCanvas');
-                    if (canvas) document.getElementById('assinaturaInput').value = canvas.toDataURL();
-                    this.atualizarFamiliaresInput();
+
+                // ======= Assinatura =======
+                desenho: false,
+                lastX: 0,
+                lastY: 0,
+                canvas: null,
+                ctx: null,
+                inputAssinatura: null,
+
+                iniciarAssinatura(e) {
+                    this.desenho = true;
+                    const pos = this.getPos(e);
+                    this.lastX = pos.x;
+                    this.lastY = pos.y;
+                },
+                moverAssinatura(e) {
+                    if (!this.desenho) return;
+                    const pos = this.getPos(e);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.lastX, this.lastY);
+                    this.ctx.lineTo(pos.x, pos.y);
+                    this.ctx.stroke();
+                    this.lastX = pos.x;
+                    this.lastY = pos.y;
+                },
+                terminarAssinatura() {
+                    this.desenho = false;
+                    this.salvarAssinatura();
                 },
                 limparAssinatura() {
-                    const canvas = document.getElementById('assinaturaCanvas');
-                    if (!canvas) return;
-                    const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    if (this.ctx && this.canvas) {
+                        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                        if (this.inputAssinatura) this.inputAssinatura.value = "";
+                    }
                 },
-                atualizarFamiliaresInput() {
-                    const familyDiv = document.querySelector('[x-data="familyTable()"]');
-                    if (familyDiv && familyDiv.__x) document.getElementById('familiaresInput').value = JSON.stringify(familyDiv.__x.$data.rows);
+                salvarAssinatura() {
+                    if (this.inputAssinatura && this.canvas)
+                        this.inputAssinatura.value = this.canvas.toDataURL("image/png");
+                },
+                getPos(e) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    if (e.touches && e.touches.length > 0) {
+                        return {
+                            x: e.touches[0].clientX - rect.left,
+                            y: e.touches[0].clientY - rect.top
+                        };
+                    } else {
+                        return {
+                            x: e.clientX - rect.left,
+                            y: e.clientY - rect.top
+                        };
+                    }
+                },
+                initCanvas() {
+                    this.canvas = document.getElementById('assinaturaCanvas');
+                    this.inputAssinatura = document.getElementById('assinaturaInput');
+                    if (!this.canvas) return;
+                    this.ctx = this.canvas.getContext('2d');
+                    this.ctx.lineWidth = 2;
+                    this.ctx.lineCap = 'round';
+                    this.ctx.strokeStyle = '#000';
+
+                    // Eventos mouse
+                    this.canvas.addEventListener('mousedown', e => this.iniciarAssinatura(e));
+                    this.canvas.addEventListener('mousemove', e => this.moverAssinatura(e));
+                    this.canvas.addEventListener('mouseup', () => this.terminarAssinatura());
+                    this.canvas.addEventListener('mouseleave', () => this.terminarAssinatura());
+
+                    // Eventos touch
+                    this.canvas.addEventListener('touchstart', e => this.iniciarAssinatura(e));
+                    this.canvas.addEventListener('touchmove', e => this.moverAssinatura(e));
+                    this.canvas.addEventListener('touchend', () => this.terminarAssinatura());
+                },
+
+                // ======= Máscaras e idade =======
+                initMasks() {
+                    const cpf = document.getElementById("cpf");
+                    if (cpf) IMask(cpf, {
+                        mask: "000.000.000-00"
+                    });
+                    const rg = document.getElementById("rg");
+                    if (rg) IMask(rg, {
+                        mask: "00.000.000-0"
+                    });
+                    const cep = document.getElementById("cep");
+                    if (cep) IMask(cep, {
+                        mask: "00000-000"
+                    });
+                },
+                calcularIdade() {
+                    const nascEl = document.getElementById("dataNascimento");
+                    const idadeEl = document.getElementById("idade");
+                    if (!nascEl || !idadeEl || !nascEl.value) return;
+                    const nasc = new Date(nascEl.value);
+                    const hoje = new Date();
+                    let idade = hoje.getFullYear() - nasc.getFullYear();
+                    const m = hoje.getMonth() - nasc.getMonth();
+                    if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) idade--;
+                    idadeEl.value = idade;
+                },
+
+                // ======= Busca CEP =======
+                debounce: null,
+                buscarCEP() {
+                    const cepEl = document.getElementById("cep");
+                    if (!cepEl) return;
+                    const cep = cepEl.value.replace(/\D/g, '');
+                    if (cep.length !== 8) return this.limparCEP();
+
+                    fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                        .then(res => res.json())
+                        .then(data => {
+                            const campos = ["rua", "bairro", "cidade", "uf", "complemento"];
+                            if (!data.erro) {
+                                campos.forEach(campo => {
+                                    const el = document.getElementById(campo);
+                                    if (el) {
+                                        if (campo === "rua") el.value = data.logradouro || "";
+                                        else if (campo === "cidade") el.value = data.localidade || "";
+                                        else el.value = data[campo] || "";
+                                    }
+                                });
+                            } else this.limparCEP();
+                        }).catch(err => console.error(err));
+                },
+                limparCEP() {
+                    ["rua", "bairro", "cidade", "uf", "complemento"].forEach(campo => {
+                        const el = document.getElementById(campo);
+                        if (el) el.value = "";
+                    });
+                },
+
+                // ======= Inicialização =======
+                init() {
+                    this.initMasks();
+                    this.initCanvas();
+
+                    // Listener CEP
+                    const cepEl = document.getElementById("cep");
+                    if (cepEl) {
+                        cepEl.addEventListener("input", () => {
+                            clearTimeout(this.debounce);
+                            this.debounce = setTimeout(() => this.buscarCEP(), 300);
+                        });
+                    }
+
+                    // Listener idade
+                    const nascEl = document.getElementById("dataNascimento");
+                    if (nascEl) {
+                        nascEl.addEventListener("change", () => this.calcularIdade());
+                    }
                 }
             }
         }
 
+        // ======= Família / Tabela de Familiares =======
         function familyTable() {
-        return {
-            rows: [],
-            addRow() {
-                this.rows.push({
-                    parentesco: '',
-                    nomeCompleto: '',
-                    idade: null,
-                    profissao: '',
-                    empresa: '',
-                    salarioBase: null
-                });
-                this.updateInput();
-            },
-            removeRow(index) {
-                this.rows.splice(index, 1);
-                this.updateInput();
-            },
-            updateInput() {
-                // Atualiza o hidden input com o JSON mais recente
-                const input = document.getElementById('familiaresInput');
-                if (input) input.value = JSON.stringify(this.rows);
-            }
-        }
-    }
-
-        // Canvas de assinatura
-        document.addEventListener('DOMContentLoaded', () => {
-            const canvas = document.getElementById('assinaturaCanvas');
-            if (!canvas) return;
-
-            const ctx = canvas.getContext('2d');
-            let drawing = false;
-            let lastX = 0;
-            let lastY = 0;
-
-            function getPos(e) {
-                const rect = canvas.getBoundingClientRect();
-                if (e.touches && e.touches.length > 0) {
-                    return {
-                        x: e.touches[0].clientX - rect.left,
-                        y: e.touches[0].clientY - rect.top
-                    };
-                } else {
-                    return {
-                        x: e.clientX - rect.left,
-                        y: e.clientY - rect.top
-                    };
+            return {
+                rows: [],
+                addRow() {
+                    this.rows.push({
+                        parentesco: "",
+                        nomeCompleto: "",
+                        idade: "",
+                        profissao: "",
+                        empresa: "",
+                        salarioBase: ""
+                    });
+                    this.updateInput();
+                },
+                removeRow(index) {
+                    this.rows.splice(index, 1);
+                    this.updateInput();
+                },
+                updateInput() {
+                    const input = document.getElementById("familiaresInput");
+                    if (input) input.value = JSON.stringify(this.rows);
+                },
+                init() {
+                    const input = document.getElementById("familiaresInput");
+                    if (input && input.value) {
+                        try {
+                            this.rows = JSON.parse(input.value);
+                        } catch (e) {
+                            this.rows = [];
+                        }
+                    }
                 }
             }
-
-            function start(e) {
-                drawing = true;
-                const pos = getPos(e);
-                lastX = pos.x;
-                lastY = pos.y;
-                e.preventDefault();
-            }
-
-            function end(e) {
-                drawing = false;
-                e.preventDefault();
-            }
-
-            function move(e) {
-                if (!drawing) return;
-                const pos = getPos(e);
-                ctx.beginPath();
-                ctx.moveTo(lastX, lastY);
-                ctx.lineTo(pos.x, pos.y);
-                ctx.stroke();
-                lastX = pos.x;
-                lastY = pos.y;
-                e.preventDefault();
-            }
-
-            // Eventos mouse
-            canvas.addEventListener('mousedown', start);
-            canvas.addEventListener('mousemove', move);
-            canvas.addEventListener('mouseup', end);
-            canvas.addEventListener('mouseout', end);
-
-            // Eventos touch
-            canvas.addEventListener('touchstart', start);
-            canvas.addEventListener('touchmove', move);
-            canvas.addEventListener('touchend', end);
-            canvas.addEventListener('touchcancel', end);
-
-            // Configurações do canvas
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = '#000';
-
-            // Garantir que familiaresInput seja sempre atualizado antes do submit
-            const form = document.querySelector('form');
-            if (form) {
-                form.addEventListener('submit', () => {
-                    const familyDiv = document.querySelector('[x-data="familyTable()"]');
-                    if (familyDiv && familyDiv.__x) {
-                        // 👉 NOVA LINHA DE CÓDIGO AQUI
-                        debugger;
-
-                        document.getElementById('familiaresInput').value = JSON.stringify(familyDiv.__x.$data.rows);
-                    }
-                    if (canvas) {
-                        document.getElementById('assinaturaInput').value = canvas.toDataURL();
-                    }
-                });
-            }
-        });
+        }
     </script>
+
 </x-guest-layout>

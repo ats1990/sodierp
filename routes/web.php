@@ -14,9 +14,13 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
+// rota inicial nomeada -> permite usar redirect()->route('welcome')
 Route::get('/', function () {
     return view('welcome');
-});
+})->name('welcome');
+
+// Rota para listar alunos
+Route::get('/alunos', [AlunoController::class, 'index'])->name('aluno.index');
 
 Route::get('/dashboard', function () {
     return view('dashboard');
