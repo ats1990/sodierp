@@ -60,16 +60,18 @@
                             <span class="ml-2 text-sm text-gray-600">{{ __('Lembrar-me') }}</span>
                         </label>
                         @if (Route::has('password.request'))
-                        <a href="{{ route('password.request') }}"
-                            class="text-gray-600 hover:text-[#fb6a28] underline text-sm">
-                            {{ __('Esqueceu sua senha?') }}
-                        </a>
+                            <a href="{{ route('password.request') }}"
+                                class="text-gray-600 hover:text-[#fb6a28] underline text-sm">
+                                {{ __('Esqueceu sua senha?') }}
+                            </a>
                         @endif
                     </div>
 
                     {{-- Botões personalizados --}}
                     <div class="flex flex-col sm:flex-row sm:justify-between gap-2 mt-4">
-                        <x-primary-button class="w-full sm:w-auto" style="background-color: #fb6a28;" onmouseover="this.style.backgroundColor='#140c0b'" onmouseout="this.style.backgroundColor='#fb6a28'">
+                        <x-primary-button class="w-full sm:w-auto" style="background-color: #fb6a28;"
+                            onmouseover="this.style.backgroundColor='#140c0b'"
+                            onmouseout="this.style.backgroundColor='#fb6a28'">
                             {{ __('Login') }}
                         </x-primary-button>
 
@@ -82,14 +84,10 @@
                             onclick="openModal('aluno')">
                             {{ __('Registrar') }}
                         </button>
-                        </a>
                     </div>
-                    </a>
+                </form>
             </div>
-            </form>
         </div>
-
-    </div>
     </div>
 
     {{-- Footer sempre abaixo do card --}}
@@ -97,6 +95,7 @@
         &copy; {{ date('Y') }} SODIPROM. Todos os direitos reservados.
         <p>Desenvolvido por Anderson Trajano.</p>
     </footer>
+
     <!-- Modal de cadastro -->
     <div id="registerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
@@ -104,61 +103,21 @@
 
             <!-- Seleção de tipo de usuário -->
             <div id="tipoUsuarioSelection" class="space-y-4">
-    <h2 class="text-xl font-semibold mb-4 text-gray-800">Escolha o tipo de usuário</h2>
-    <div class="flex flex-col gap-2">
-        <button onclick="window.location='{{ route('aluno.create') }}'" 
-                class="w-full bg-[#fb6a28] hover:bg-[#140c0b] text-white py-2 px-4 rounded-lg">
-            Aluno
-        </button>
-        <button onclick="window.location='{{ route('professor.create') }}'" 
-                class="w-full bg-[#fb6a28] hover:bg-[#140c0b] text-white py-2 px-4 rounded-lg">
-            Professor
-        </button>
-        <button onclick="window.location='{{ route('coordenacao.create') }}'" 
-                class="w-full bg-[#fb6a28] hover:bg-[#140c0b] text-white py-2 px-4 rounded-lg">
-            Coordenação
-        </button>
-        <button onclick="window.location='{{ route('administracao.create') }}'" 
-                class="w-full bg-[#fb6a28] hover:bg-[#140c0b] text-white py-2 px-4 rounded-lg">
-            Administração
-        </button>
-        <button onclick="window.location='{{ route('psicologo.create') }}'" 
-                class="w-full bg-[#fb6a28] hover:bg-[#140c0b] text-white py-2 px-4 rounded-lg">
-            Psicólogo
-        </button>
-    </div>
-</div>
-
-
-            <!-- Formulário do Aluno -->
-            <form id="alunoForm" method="POST" action="{{ route('aluno.store') }}" class="space-y-4 hidden mt-4">
-                @csrf
-                <h2 class="text-xl font-semibold mb-4 text-gray-800">Cadastrar Aluno</h2>
-
-                <label for="nome" class="block text-gray-700">Nome</label>
-                <input id="nome" type="text" name="nome" required
-                    class="w-full border border-gray-300 rounded py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#fb6a28] focus:border-[#fb6a28]" />
-
-                <label for="emailAluno" class="block text-gray-700">Email</label>
-                <input id="emailAluno" type="email" name="email" required
-                    class="w-full border border-gray-300 rounded py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#fb6a28] focus:border-[#fb6a28]" />
-
-                <label for="senhaAluno" class="block text-gray-700">Senha</label>
-                <input id="senhaAluno" type="password" name="senha" required
-                    class="w-full border border-gray-300 rounded py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#fb6a28] focus:border-[#fb6a28]" />
-
-                <button type="submit" class="w-full bg-[#fb6a28] hover:bg-[#140c0b] text-white font-semibold py-2 px-4 rounded-lg">
-                    Cadastrar
-                </button>
-            </form>
-
-            <!-- Formulários futuros: professor, coordenação, etc -->
-            <!-- Para cada tipo, criaremos um form hidden parecido -->
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">Escolha o tipo de usuário</h2>
+                <div class="flex flex-col gap-2">
+                    <button onclick="window.location='{{ route('aluno.create') }}'"
+                        class="w-full bg-[#fb6a28] hover:bg-[#140c0b] text-white py-2 px-4 rounded-lg">
+                        Aluno
+                    </button>
+                    <button onclick="window.location='{{ route('usuarios.create') }}'"
+                        class="w-full bg-[#fb6a28] hover:bg-[#140c0b] text-white py-2 px-4 rounded-lg">
+                        Colaborador
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
-    </form>
-    </div>
-    </div>
+
     <script>
         function openModal(tipo) {
             if (tipo === 'aluno') {

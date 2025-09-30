@@ -1,7 +1,7 @@
 <x-guest-layout>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/imask"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <div x-data="wizard()" class="w-full max-w-full mx-auto p-8 bg-white rounded-xl shadow-lg space-y-6">
         <form id="triagemForm" action="{{ route('aluno.store') }}" method="POST">
@@ -548,6 +548,42 @@
             </div>
         </form>
     </div>
+   
+<div x-data="{ open: {{ session('success') ? 'true' : 'false' }} }">
+    
+    <!-- Modal -->
+    <div 
+        x-show="open" 
+        x-transition
+        class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
+    >
+        <div 
+            @click.away="open = false" 
+            class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 relative"
+        >
+            <!-- Fechar -->
+            <button 
+                @click="open = false" 
+                class="absolute top-3 right-3 text-gray-500 hover:text-gray-800"
+            >
+                &times;
+            </button>
+
+            <!-- Conteúdo do Modal -->
+            <h2 class="text-xl font-semibold mb-4">Sucesso!</h2>
+            <p>{{ session('success') }}</p>
+
+            <div class="flex justify-end mt-4">
+                <button 
+                    @click="open = false" 
+                    class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                >
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
     <script>
         window.wizard = function() {
@@ -752,4 +788,39 @@
         }
     </script>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            @if(session('success'))
+            Swal.fire({
+                title: "{{ session('success') }}",
+                icon: 'success',
+                confirmButtonText: 'OK',
+                backdrop: true,
+                allowOutsideClick: false,
+                customClass: {
+                    popup: 'rounded-xl shadow-lg border-2 border-brand',
+                    title: 'text-xl font-bold text-brand',
+                    confirmButton: 'bg-brand hover:bg-brand-dark text-white font-semibold px-6 py-2 rounded-lg'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "{{ route('welcome') }}";
+                }
+            });
+            @elseif(session('error'))
+            Swal.fire({
+                title: "{{ session('error') }}",
+                icon: 'error',
+                confirmButtonText: 'OK',
+                backdrop: true,
+                allowOutsideClick: false,
+                customClass: {
+                    popup: 'rounded-xl shadow-lg border-2 border-red-500',
+                    title: 'text-xl font-bold text-red-500',
+                    confirmButton: 'bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2 rounded-lg'
+                }
+            });
+            @endif
+        });
+    </script>
 </x-guest-layout>
