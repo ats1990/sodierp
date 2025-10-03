@@ -7,6 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SODIERP - Sistema de Gestão</title>
     @vite('resources/css/app.css')
+    {{-- Favicon --}}
+    <link rel="shortcut icon" href="{{ asset('assets/images/favicon.png') }}" type="image/png">
 </head>
 
 <body class="min-h-screen bg-gradient-to-br from-orange-50 via-white to-blue-50 flex flex-col">
@@ -21,20 +23,19 @@
                 <p class="text-gray-700 mb-4">
                     Gerencie aprendizes, turmas e avaliações de forma simples e segura.
                 </p>
-
-                <img src="{{ asset('images/welcome-illustration.svg') }}" alt="Ilustração" class="w-60 mx-auto">
+                <<img src="{{ asset('assets/images/welcome-illustration.svg') }}" alt="Ilustração">
             </div>
 
             {{-- Seção de login/registro --}}
             <div class="md:w-1/2 p-8 flex flex-col justify-center items-center">
-                <img src="{{ asset('images/logo.png') }}" alt="SODIERP Logo" class="w-24 mb-4">
-
+                <img src="{{ asset('assets/images/logo.png') }}" alt="Logo">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Acesse sua conta</h2>
 
                 {{-- Formulário de login --}}
-                <form method="POST" action="{{ route('login') }}" class="space-y-4 w-full">
+                <form method="POST" action="{{ route('login.store') }}" class="space-y-4 w-full">
                     @csrf
 
+                    {{-- Email --}}
                     <x-input-label for="email" :value="__('Email')" />
                     <x-text-input
                         id="email"
@@ -45,6 +46,7 @@
                         autofocus
                         class="w-full border-gray-300 rounded focus:border-[#fb6a28] focus:ring focus:ring-[#fb6a28]/30" />
 
+                    {{-- Senha --}}
                     <x-input-label for="password" :value="__('Senha')" />
                     <x-text-input
                         id="password"
@@ -54,22 +56,27 @@
                         autocomplete="current-password"
                         class="w-full border-gray-300 rounded focus:border-[#fb6a28] focus:ring focus:ring-[#fb6a28]/30" />
 
+                    {{-- Lembrar-me e esqueci a senha --}}
                     <div class="flex items-center justify-between">
                         <label for="remember_me" class="inline-flex items-center">
-                            <input id="remember_me" type="checkbox" class="rounded border-gray-300 text-orange-600 shadow-sm focus:ring-orange-500" name="remember">
+                            <input id="remember_me" type="checkbox"
+                                class="rounded border-gray-300 text-orange-600 shadow-sm focus:ring-orange-500"
+                                name="remember">
                             <span class="ml-2 text-sm text-gray-600">{{ __('Lembrar-me') }}</span>
                         </label>
+
                         @if (Route::has('password.request'))
-                            <a href="{{ route('password.request') }}"
-                                class="text-gray-600 hover:text-[#fb6a28] underline text-sm">
-                                {{ __('Esqueceu sua senha?') }}
-                            </a>
+                        <a href="{{ route('password.request') }}"
+                            class="text-gray-600 hover:text-[#fb6a28] underline text-sm">
+                            {{ __('Esqueceu sua senha?') }}
+                        </a>
                         @endif
                     </div>
 
-                    {{-- Botões personalizados --}}
+                    {{-- Botões Login / Registrar --}}
                     <div class="flex flex-col sm:flex-row sm:justify-between gap-2 mt-4">
-                        <x-primary-button class="w-full sm:w-auto" style="background-color: #fb6a28;"
+                        <x-primary-button class="w-full sm:w-auto"
+                            style="background-color: #fb6a28;"
                             onmouseover="this.style.backgroundColor='#140c0b'"
                             onmouseout="this.style.backgroundColor='#fb6a28'">
                             {{ __('Login') }}
@@ -90,18 +97,16 @@
         </div>
     </div>
 
-    {{-- Footer sempre abaixo do card --}}
+    {{-- Footer --}}
     <footer class="w-full text-center py-4 text-gray-500 text-sm">
         &copy; {{ date('Y') }} SODIPROM. Todos os direitos reservados.
         <p>Desenvolvido por Anderson Trajano.</p>
     </footer>
 
-    <!-- Modal de cadastro -->
+    {{-- Modal de cadastro --}}
     <div id="registerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
             <button onclick="closeModal()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
-
-            <!-- Seleção de tipo de usuário -->
             <div id="tipoUsuarioSelection" class="space-y-4">
                 <h2 class="text-xl font-semibold mb-4 text-gray-800">Escolha o tipo de usuário</h2>
                 <div class="flex flex-col gap-2">

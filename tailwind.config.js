@@ -15,8 +15,12 @@ export default {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
             colors: {
-                brand: '#fb6a28',
-                'brand-dark': '#140c0b',
+                // Paleta Flamingo Pampas
+                brand: '#fb6a28',        // Laranja principal
+                'brand-dark': '#140c0b', // Preto/Marrom escuro
+                'brand-light': '#ffe5d1', // Tom claro de apoio
+                'brand-muted': '#f7c8a5', // Tom médio
+                'brand-hover': '#ff8a45', // Hover ou destaque
             },
         },
     },

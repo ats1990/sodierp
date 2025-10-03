@@ -1,34 +1,34 @@
-{{-- resources/views/painel/coordenacao.blade.php --}}
 @extends('layouts.app')
 
-@section('title', 'Painel Coordenação')
+@section('title', 'Painel da Coordenação')
 
 @section('content')
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-
-    {{-- Card 1 --}}
-    <div class="bg-white p-6 rounded-2xl shadow hover:shadow-lg transition cursor-pointer">
-        <h2 class="text-xl font-semibold text-gray-800 mb-2">Gerenciar Usuários</h2>
-        <p class="text-gray-600 mb-4">Ativar contas, editar perfis e gerenciar permissões.</p>
-        <a href="{{ route('usuarios.create') }}"
-           class="inline-block px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-800">Acessar</a>
+    <div class="page-header">
+        <h3 class="page-title">
+            <span class="page-title-icon bg-gradient-primary text-white me-2">
+                <i class="mdi mdi-home"></i>
+            </span> Dashboard Coordenação
+        </h3>
+        <nav aria-label="breadcrumb">
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item active" aria-current="page">
+                    <span></span>Overview <i class="mdi mdi-alert-circle-outline icon-sm text-primary align-middle"></i>
+                </li>
+            </ul>
+        </nav>
     </div>
 
-    {{-- Card 2 --}}
-    <div class="bg-white p-6 rounded-2xl shadow hover:shadow-lg transition cursor-pointer">
-        <h2 class="text-xl font-semibold text-gray-800 mb-2">Relatórios</h2>
-        <p class="text-gray-600 mb-4">Visualize relatórios de presença, avaliações e desempenho.</p>
-        <a href="#"
-           class="inline-block px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-800">Acessar</a>
-    </div>
-
-    {{-- Card 3 --}}
-    <div class="bg-white p-6 rounded-2xl shadow hover:shadow-lg transition cursor-pointer">
-        <h2 class="text-xl font-semibold text-gray-800 mb-2">Turmas</h2>
-        <p class="text-gray-600 mb-4">Gerencie turmas, professores e horários.</p>
-        <a href="{{ route('aluno.index') }}"
-           class="inline-block px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-800">Acessar</a>
-    </div>
-
-</div>
+    <div class="row">
+        <div class="col-md-4 stretch-card grid-margin">
+            <div class="card bg-gradient-danger card-img-holder text-white">
+                <div class="card-body">
+                    <img src="{{ asset('assets/images/dashboard/circle.svg') }}" class="card-img-absolute" alt="circle-image" />
+                    <h4 class="font-weight-normal mb-3">Vendas Semanais <i class="mdi mdi-chart-line mdi-24px float-end"></i>
+                    </h4>
+                    <h2 class="mb-5">R$ 15.000,00</h2>
+                    <h6 class="card-text">Aumento de 60%</h6>
+                </div>
+            </div>
+        </div>
+        </div>
 @endsection

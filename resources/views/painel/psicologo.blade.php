@@ -1,11 +1,14 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="p-6 max-w-7xl mx-auto">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Painel do Psicólogo</h1>
+    <x-sidebar />
 
-    <div class="bg-white rounded-xl shadow p-4">
-        <p class="text-gray-700">Área do psicólogo em desenvolvimento. Aqui você poderá acompanhar atendimentos, registros e relatórios dos alunos.</p>
+    <div class="p-6 flex-1">
+        <h2 class="text-2xl font-bold mb-4">Painel do Psicólogo</h2>
+        <div class="grid grid-cols-3 gap-6">
+            <div class="bg-white p-4 rounded shadow">Atendimentos</div>
+            <div class="bg-white p-4 rounded shadow">Relatórios</div>
+            <div class="bg-white p-4 rounded shadow">Agenda</div>
+        </div>
     </div>
-</div>
 @endsection

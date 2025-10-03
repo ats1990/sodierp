@@ -1,52 +1,39 @@
-{{-- resources/views/layouts/app.blade.php --}}
 <!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'SODIERP')</title>
-    @vite('resources/css/app.css')
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>@yield('title', 'Painel Admin')</title>
+    <link rel="stylesheet" href="{{ asset('assets/vendors/css/vendor.bundle.base.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendors/mdi/css/materialdesignicons.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
+    <link rel="shortcut icon" href="{{ asset('assets/images/favicon.png') }}" />
 </head>
 
-<body class="min-h-screen bg-gray-50 flex flex-col">
-
-    {{-- Navbar --}}
-    <header class="bg-white shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
-            <div class="flex items-center space-x-2">
-                <img src="{{ asset('images/logo.png') }}" alt="SODIERP Logo" class="h-10">
-                <span class="font-bold text-xl text-gray-800">SODIERP</span>
+<body>
+    <div class="container-scroller">
+        @include('components.navbar')
+        <div class="container-fluid page-body-wrapper">
+            @include('components.sidebar')
+            <div class="main-panel">
+                <div class="content-wrapper">
+                    @yield('content')
+                </div>
+                {{-- Linha 50: O footer fixo foi removido e substituído pelo @include --}}
+                @include('components.footer')
             </div>
-
-            <nav class="flex items-center space-x-4">
-                @auth
-                    <span class="text-gray-700">{{ Auth::user()->nomeCompleto }}</span>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit"
-                            class="text-white bg-orange-600 hover:bg-orange-800 px-4 py-1 rounded-lg">Sair</button>
-                    </form>
-                @else
-                    <a href="{{ route('login') }}"
-                        class="text-gray-700 hover:text-orange-600 font-semibold">Login</a>
-                @endauth
-            </nav>
         </div>
-    </header>
-
-    {{-- Conteúdo principal --}}
-    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-        @yield('content')
-    </main>
-
-    {{-- Footer --}}
-    <footer class="bg-white shadow-inner py-4 mt-auto text-center text-gray-500 text-sm">
-        &copy; {{ date('Y') }} SODIPROM. Todos os direitos reservados.
-        <p>Desenvolvido por Anderson Trajano.</p>
-    </footer>
-
+    </div>
+    <script src="{{ asset('assets/vendors/js/vendor.bundle.base.js') }}"></script>
+    <script src="{{ asset('assets/vendors/chart.js/chart.umd.js') }}"></script>
+    <script src="{{ asset('assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js') }}"></script>
+    <script src="{{ asset('assets/js/off-canvas.js') }}"></script>
+    <script src="{{ asset('assets/js/misc.js') }}"></script>
+    <script src="{{ asset('assets/js/settings.js') }}"></script>
+    <script src="{{ asset('assets/js/todolist.js') }}"></script>
+    <script src="{{ asset('assets/js/dashboard.js') }}"></script>
+    @stack('scripts')
 </body>
 
 </html>

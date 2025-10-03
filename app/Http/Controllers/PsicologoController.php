@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Usuario; // ⚠️ IMPORTANTE: precisa importar Usuario
 
 class PsicologoController extends Controller
 {
@@ -12,20 +13,24 @@ class PsicologoController extends Controller
         $this->middleware('role:psicologo');
     }
 
+    // Painel do psicólogo
     public function dashboard()
     {
-        return view('painel.psicologo');
+        return view('painel.psicologo'); // Certifique-se que esta view exista
     }
 
+    // Formulário de cadastro
     public function create()
     {
-        return view('psicologo.create');
+        return view('psicologo.create'); // Certifique-se que esta view exista
     }
 
+    // Salvar novo psicólogo
     public function store(Request $request)
     {
         $request->validate([
             'nomeCompleto' => 'required|string|max:255',
+            'nomeSocial' => 'nullable|string|max:255',
             'email' => 'required|email|unique:usuarios,email',
             'cpf' => 'nullable|string|unique:usuarios,cpf',
             'password' => 'required|string|min:6|confirmed',
@@ -37,10 +42,11 @@ class PsicologoController extends Controller
             'email' => $request->email,
             'cpf' => $request->cpf,
             'tipo' => 'psicologo',
-            'status' => 'inativo', // precisa ativação
+            'status' => 'inativo', // precisa ativação pela coordenação
             'password' => $request->password,
         ]);
 
-        return redirect()->route('painel.psicologo')->with('success', 'Psicólogo cadastrado com sucesso!');
+        return redirect()->route('painel.psicologo')
+            ->with('success', 'Psicólogo cadastrado com sucesso! Aguarde ativação.');
     }
 }

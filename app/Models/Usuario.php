@@ -22,7 +22,7 @@ class Usuario extends Authenticatable
         'nomeSocial',
         'email',
         'cpf',
-        'tipo',
+        'tipo', // papel do usuário
         'status',
         'password',
         'programa_basica',
@@ -45,5 +45,13 @@ class Usuario extends Authenticatable
     public function setPasswordAttribute($value)
     {
         $this->attributes['password'] = bcrypt($value);
+    }
+
+    /**
+     * Verifica se o usuário possui um determinado papel
+     */
+    public function hasRole(string $role): bool
+    {
+        return $this->tipo === $role;
     }
 }
