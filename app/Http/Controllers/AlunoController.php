@@ -82,8 +82,8 @@ class AlunoController extends Controller
 
             DB::commit();
 
-            return redirect()->route('welcome')
-                ->with('success', 'Aluno e familiares cadastrados com sucesso!');
+           return redirect()->route('login') // <-- LINHA CORRIGIDA: Usa a rota de login existente.
+    ->with('success', 'Aluno e familiares cadastrados com sucesso! Faça seu login.');
         } catch (\Exception $e) {
             DB::rollBack();
 

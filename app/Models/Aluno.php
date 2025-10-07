@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Turma; // <-- Importado para o relacionamento
 
 class Aluno extends Model
 {
@@ -29,6 +30,7 @@ class Aluno extends Model
         'medico_especialista','qual_medico_especialista','familia_psicologico',
         'quem_familia_psicologico','familia_alcool','quem_familia_alcool','familia_drogas',
         'quem_familia_drogas','declaracao_consentimento','assinatura',
+        'turma_id', // <-- CRUCIAL: Adicionado para permitir atribuir o aluno a uma turma
     ];
 
     // Campos booleanos do formulário
@@ -45,6 +47,16 @@ class Aluno extends Model
     {
         return $this->hasMany(Familiar::class);
     }
+    
+    /**
+     * Relação: Um Aluno pertence a uma Turma.
+     * Adicionado o relacionamento de volta.
+     */
+    public function turma()
+    {
+        return $this->belongsTo(Turma::class, 'turma_id');
+    }
+
 
     // Mutator genérico para booleanos
     protected static function booted()
