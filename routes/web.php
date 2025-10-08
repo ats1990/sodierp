@@ -112,6 +112,15 @@ Route::middleware(['auth', 'check.status'])->group(function () {
             Route::get('/turmas', [FormacaoController::class, 'indexTurmas'])->name('turmas.index');
             Route::post('/turmas', [FormacaoController::class, 'storeTurmas'])->name('turmas.store');
             Route::delete('/turmas/{turma}', [FormacaoController::class, 'destroyTurma'])->name('turmas.destroy');
+
+            // Rota para atribuição rápida de aluno (dentro do modal)
+            Route::post('/turmas/atribuir', [FormacaoController::class, 'atribuirAlunoTurma'])->name('turmas.atribuir'); // Rota para o modal rápido
+
+            // NOVO: Rota para a tela de Atribuição Detalhada (acessada pelo botão)
+            Route::get('/atribuicao', [FormacaoController::class, 'indexAtribuicaoTurmas'])->name('atribuicao.index');
+
+            // NOVO: Rota para salvar a atribuição (usada na tela detalhada)
+            Route::post('/atribuicao/{aluno}', [FormacaoController::class, 'updateAtribuicaoAluno'])->name('atribuicao.update');
             // LINHA CORRIGIDA: Usa o caminho e nome relativos ao grupo 'formacao'
             Route::post('/turmas/apagar-tudo', [FormacaoController::class, 'destroyAllTurmas'])->name('turmas.destroy.all');
             // ... (o restante das rotas de formação) ...

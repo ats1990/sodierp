@@ -13,16 +13,17 @@ class FormacaoController extends Controller
 {
     /**
      * Exibe a lista de turmas (Index).
+     * @return \Illuminate\View\View
      */
     public function indexTurmas()
     {
+        // Carrega todas as turmas ordenadas por ano, período e letra
         $turmas = Turma::orderBy('ano_letivo', 'desc')
                         ->orderBy('periodo', 'asc')
                         ->orderBy('letra', 'asc')
                         ->get();
         
-        // NOVO: Pega os alunos que ainda não estão atribuídos a uma turma (turma_id IS NULL)
-        // Isso simula o critério de "aprovado/disponível para formação básica"
+        // Pega os alunos que ainda não estão atribuídos a uma turma (para o modal de atribuição rápida)
         $alunosDisponiveis = Aluno::whereNull('turma_id')
                                   ->orderBy('nomeCompleto', 'asc')
                                   ->get();
@@ -32,175 +33,215 @@ class FormacaoController extends Controller
     }
 
     /**
-     * Exibe a lista de alunos para atribuição de turmas e as turmas disponíveis.
+     * Exibe a lista de alunos para atribuição de turmas com filtros.
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\View\View
      */
-    public function indexAtribuicaoTurmas()
+    public function indexAtribuicaoTurmas(Request $request)
     {
-        // Pega todos os alunos, com paginação e carregando a relação da turma
-        $alunos = Aluno::with('turma')
-                       ->orderBy('nomeCompleto', 'asc')
-                       ->paginate(15); 
-
-        // Turmas disponíveis para atribuição, ordenadas para o select
+        // 1. Carrega todas as turmas para o campo de seleção (Turma e Tabela)
         $turmas = Turma::orderBy('ano_letivo', 'desc')
                        ->orderBy('periodo', 'asc')
+                       ->orderBy('letra', 'asc')
                        ->get();
+        
+        // 2. Carrega os anos letivos distintos disponíveis nas turmas para o filtro
+        $anosDisponiveis = Turma::select('ano_letivo')
+                                ->distinct()
+                                ->orderBy('ano_letivo', 'desc')
+                                ->pluck('ano_letivo');
 
-        // RETORNO ATUALIZADO: Usando a nova pasta 'atribuicao'
-        return view('formacao.atribuicao.index', compact('alunos', 'turmas'));
+        // 3. Inicializa a query de Alunos, carregando a relação da turma
+        $query = Aluno::with('turma')
+                       ->orderBy('nomeCompleto', 'asc');
+        
+        // ===========================================
+        // 4. APLICAÇÃO DOS FILTROS DINÂMICOS
+        // ===========================================
+
+        // a) Filtro por Turma
+        if ($request->filled('filtro_turma')) {
+            $filtroTurma = $request->input('filtro_turma');
+            
+            if ($filtroTurma === 'sem_turma') {
+                // Filtra alunos que NÃO têm turma atribuída (turma_id IS NULL)
+                $query->whereNull('turma_id');
+            } else {
+                // Filtra alunos por ID de turma específico
+                $query->where('turma_id', $filtroTurma);
+            }
+        }
+        
+        // b) Filtro por Ano Letivo
+        if ($request->filled('filtro_ano')) {
+            $filtroAno = $request->input('filtro_ano');
+            
+            // Filtra alunos que pertencem a turmas naquele ano
+            // Usa whereHas para verificar a relação 'turma'
+            $query->whereHas('turma', function ($q) use ($filtroAno) {
+                $q->where('ano_letivo', $filtroAno);
+            });
+        }
+
+        // c) Filtro de Busca por Nome ou CPF
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                // Busca por nome completo ou CPF (case insensitive)
+                $q->where(DB::raw('LOWER(nomeCompleto)'), 'like', "%" . Str::lower($search) . "%")
+                  ->orWhere('cpf', 'like', "%{$search}%");
+            });
+        }
+        
+        // 5. Executa a query com paginação e mantém os filtros na URL
+        $alunos = $query->paginate(15)->withQueryString();
+
+        // 6. Passa todos os dados para a view
+        return view('formacao.atribuicao.index', compact('alunos', 'turmas', 'anosDisponiveis')); 
     }
 
     /**
-     * Atribui um aluno a uma turma. (Usado tanto pelo modal quanto pela view de atribuicao)
-     *
-     * @param Request $request
+     * Lógica para Atribuir ou Desvincular um Aluno a uma Turma.
+     * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\RedirectResponse
      */
     public function atribuirTurma(Request $request)
     {
         $request->validate([
             'aluno_id' => 'required|exists:alunos,id',
-            'turma_id' => 'required|exists:turmas,id',
+            // turma_id pode ser vazio/nulo (para desvincular)
+            'turma_id' => 'nullable|exists:turmas,id', 
         ]);
+    
+        $aluno = Aluno::findOrFail($request->aluno_id);
+        $turmaId = $request->turma_id;
+        $mensagem = '';
+    
+        // Se turma_id é vazio, desvincula o aluno
+        if (empty($turmaId)) {
+            $aluno->turma_id = null;
+            $mensagem = "Aluno(a) **{$aluno->nomeCompleto}** desvinculado(a) de qualquer turma.";
+        } else {
+            // Atribui a nova turma
+            $turma = Turma::findOrFail($turmaId);
 
-        try {
-            // Busca o aluno e a turma
-            $aluno = Aluno::findOrFail($request->aluno_id);
-            $turma = Turma::findOrFail($request->turma_id);
+            // 🚨 Verificação de Vagas Opcional: Descomente se quiser impedir atribuição após lotação
+            // if ($turma->alunos()->count() >= $turma->vagas && $aluno->turma_id !== $turmaId) {
+            //     return redirect()->back()->with('error', "Turma {$turma->nome_completo} está lotada. Vagas: {$turma->vagas}.");
+            // }
 
-            // Atualiza o aluno com o turma_id
-            $aluno->turma_id = $request->turma_id;
-            $aluno->save();
-
-            // Redireciona com mensagem de sucesso
-            // Verifica de qual rota veio o request para redirecionar corretamente
-            $routeName = Str::contains($request->session()->previousUrl(), 'atribuicao') 
-                            ? 'formacao.atribuicao.index' 
-                            : 'formacao.turmas.index';
-
-            return redirect()->route($routeName)
-                             ->with('success', "Aluno {$aluno->nomeCompleto} atribuído à turma {$turma->nome_completo} com sucesso.");
-        } catch (\Exception $e) {
-            Log::error('Erro ao atribuir turma ao aluno: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Ocorreu um erro durante a atribuição de turma. Tente novamente.');
+            $aluno->turma_id = $turmaId;
+            $mensagem = "Aluno(a) **{$aluno->nomeCompleto}** atribuído(a) à turma **{$turma->nome_completo}** com sucesso.";
         }
+    
+        $aluno->save();
+        return redirect()->back()->with('success', $mensagem);
     }
-
+    
 
     /**
-     * Armazena uma nova(s) turma(s) com sequenciamento automático de letras.
+     * Salva uma nova turma no armazenamento.
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function storeTurmas(Request $request)
     {
-        // 1. Validação dos dados de entrada (incluindo as datas)
-        $request->validate([
-            'ano_letivo' => 'required|integer|digits:4',
-            'data_inicio' => 'required|date',
-            'data_fim' => 'required|date|after_or_equal:data_inicio',
-            'vagas_por_turma' => 'required|integer|min:1',
-            'qtd_manha' => 'nullable|integer|min:0|max:10',
-            'qtd_tarde' => 'nullable|integer|min:0|max:10',
-            'qtd_noite' => 'nullable|integer|min:0|max:10',
+        // 1. Validação dos dados de entrada
+        $validatedData = $request->validate([
+            'ano_letivo' => 'required|integer|min:2020|max:2099',
+            'periodo' => 'required|string|in:Manhã,Tarde',
+            'letra' => 'required|string|max:1',
+            'vagas' => 'required|integer|min:1',
+            'professor_id' => 'nullable|exists:usuarios,id',
         ]);
-
-        $anoLetivo = $request->input('ano_letivo');
-        $vagas = $request->input('vagas_por_turma');
-        $dataInicio = $request->input('data_inicio');
-        $dataFim = $request->input('data_fim');
-
-        // Mapa de períodos e suas quantidades
-        $periodos = [
-            'Manhã' => $request->input('qtd_manha', 0),
-            'Tarde' => $request->input('qtd_tarde', 0),
-            'Noite' => $request->input('qtd_noite', 0),
-        ];
-
-        $turmasCriadas = 0;
-
-        // Garante que todas as turmas sejam criadas ou nenhuma seja (transação)
-        DB::transaction(function () use ($periodos, $anoLetivo, $vagas, $dataInicio, $dataFim, &$turmasCriadas) {
-            
-            // LÓGICA DE SEQUENCIAMENTO (CONTINUAR DO ÚLTIMO PONTO):
-            $lastLetter = Turma::where('ano_letivo', $anoLetivo)->max('letra'); 
-            
-            if ($lastLetter) {
-                $startLetter = chr(ord($lastLetter) + 1);
-            } else {
-                $startLetter = 'A';
-            }
-            
-            $letterCounter = 0; 
-            
-            foreach ($periodos as $periodo => $quantidade) {
-                if ($quantidade > 0) {
-                    
-                    for ($i = 0; $i < $quantidade; $i++) {
-                        $currentLetter = chr(ord($startLetter) + $letterCounter);
-                        $letterCounter++;
-
-                        if ($currentLetter > 'Z') { 
-                            break; 
-                        }
-
-                        // Cria a turma no banco de dados, incluindo as datas
-                        Turma::create([
-                            'periodo' => $periodo,
-                            'letra' => $currentLetter,
-                            'ano_letivo' => $anoLetivo,
-                            'data_inicio' => $dataInicio,
-                            'data_fim' => $dataFim,
-                            'vagas' => $vagas,
-                            'professor_id' => null, 
-                        ]);
-                        $turmasCriadas++;
-                    }
-                }
-            }
-        });
-
-        if ($turmasCriadas > 0) {
-            $message = "Sucesso! " . $turmasCriadas . " turma(s) criada(s) para o ano letivo de " . $anoLetivo . ".";
-            return redirect()->route('formacao.turmas.index')->with('success', $message);
+    
+        // 2. Verifica se a turma já existe
+        $turmaExistente = Turma::where('ano_letivo', $validatedData['ano_letivo'])
+                               ->where('periodo', $validatedData['periodo'])
+                               ->where('letra', $validatedData['letra'])
+                               ->first();
+    
+        if ($turmaExistente) {
+            return redirect()->back()
+                             ->with('error', "Já existe uma turma com a letra '{$validatedData['letra']}' no período '{$validatedData['periodo']}' para o ano de {$validatedData['ano_letivo']}.")
+                             ->withInput();
         }
-
-        return redirect()->back()->with('success', 'Nenhuma nova turma foi criada.');
+    
+        // 3. Cria a nova turma
+        $turma = Turma::create($validatedData);
+    
+        return redirect()->route('formacao.turmas.index')
+                         ->with('success', "Turma **{$turma->nome_completo}** criada com sucesso!");
     }
 
     /**
      * Remove a turma especificada do armazenamento.
      * @param \App\Models\Turma $turma
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroyTurma(Turma $turma)
     {
+        DB::beginTransaction();
         try {
+            // Desvincula todos os alunos desta turma (turma_id = NULL)
+            Aluno::where('turma_id', $turma->id)->update(['turma_id' => null]);
+
             $turmaNome = $turma->nome_completo;
             $turma->delete();
+            
+            DB::commit();
             return redirect()->route('formacao.turmas.index')
-                             ->with('success', "Turma '$turmaNome' excluída com sucesso!");
+                             ->with('success', "Turma **'$turmaNome'** excluída com sucesso! Alunos desvinculados.");
         } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Erro ao excluir a turma: ' . $e->getMessage());
             return redirect()->back()
-                             ->withErrors(['delete_error' => 'Erro ao excluir a turma. Verifique se há alunos ou registros vinculados.']);
+                             ->with('error', 'Erro ao excluir a turma. Tente novamente.');
         }
     }
 
     /**
      * Remove todas as turmas do armazenamento.
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroyAllTurmas()
     {
         DB::beginTransaction();
         try {
+            // Primeiro, desvincula todos os alunos de qualquer turma
+            Aluno::whereNotNull('turma_id')->update(['turma_id' => null]);
+
             // Deleta todos os registros na tabela 'turmas'. 
             $count = Turma::count();
             Turma::query()->delete(); 
+            
             DB::commit();
             return redirect()->route('formacao.turmas.index')
-                             ->with('success', "$count turmas foram excluídas com sucesso.");
+                             ->with('success', "**$count** turmas foram excluídas com sucesso. Todos os alunos foram desvinculados.");
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erro ao deletar todas as turmas: ' . $e->getMessage());
             return redirect()->back()
                              ->with('error', 'Erro ao tentar excluir todas as turmas.');
         }
+    }
+    
+    // ... (Outros métodos como indexNotas, indexBoletim, etc., podem ser adicionados aqui) ...
+
+    public function indexNotas()
+    {
+        // Lógica para a tela de Notas
+        return view('formacao.notas.index');
+    }
+
+    public function indexBoletim()
+    {
+        // Lógica para a tela de Boletim
+        return view('formacao.boletim.index');
+    }
+
+    public function indexCertificado()
+    {
+        // Lógica para a tela de Certificado
+        return view('formacao.certificado.index');
     }
 }
