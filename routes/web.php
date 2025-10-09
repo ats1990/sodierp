@@ -59,7 +59,6 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::get('/painel/coordenacao', [CoordenacaoController::class, 'dashboard'])
         ->middleware('role:coordenacao')
         ->name('painel.coordenacao');
-    // ... (o restante das rotas de painel) ...
     Route::get('/painel/administracao', [AdministracaoController::class, 'dashboard'])
         ->middleware('role:administracao')
         ->name('painel.administracao');
@@ -81,9 +80,11 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::get('/alunos', [AlunoController::class, 'index'])->name('aluno.index');
 
     // ... (o restante das rotas de gerenciamento de usuários, programas, e formação) ...
+    // 💥 CORREÇÃO APLICADA AQUI: [UsuarioController::class, 'index']
     Route::get('/usuarios', [UsuarioController::class, 'index'])
         ->middleware('role:coordenacao')
         ->name('usuarios.index');
+        
     // Rota para ATIVAR Usuário
     Route::patch('/usuarios/{usuario}/ativar', [UsuarioController::class, 'ativar'])
         ->middleware('role:coordenacao')
@@ -111,22 +112,30 @@ Route::middleware(['auth', 'check.status'])->group(function () {
         ->group(function () {
             Route::get('/turmas', [FormacaoController::class, 'indexTurmas'])->name('turmas.index');
             Route::post('/turmas', [FormacaoController::class, 'storeTurmas'])->name('turmas.store');
-            Route::delete('/turmas/{turma}', [FormacaoController::class, 'destroyTurma'])->name('turmas.destroy');
+            
+            // ROTA DE CRIAÇÃO EM LOTE
+            Route::post('/turmas/store-bulk', [FormacaoController::class, 'storeBulk'])->name('turmas.storeBulk');
 
+            // 💥 CORREÇÃO PRINCIPAL AQUI: Rota específica deve vir antes da rota com parâmetro dinâmico
+            // Rota para Excluir TODAS as Turmas (deve vir antes de 'turmas/{turma}')
+            Route::delete('turmas/excluir-todas', [FormacaoController::class, 'destroyAllTurmas'])->name('turmas.destroyAll');
+
+            // Rota para Excluir uma Turma ÚNICA (com parâmetro dinâmico)
+            Route::delete('/turmas/{turma}', [FormacaoController::class, 'destroyTurma'])->name('turmas.destroy');
+            
             // Rota para atribuição rápida de aluno (dentro do modal)
             Route::post('/turmas/atribuir', [FormacaoController::class, 'atribuirAlunoTurma'])->name('turmas.atribuir'); // Rota para o modal rápido
 
             // NOVO: Rota para a tela de Atribuição Detalhada (acessada pelo botão)
-            Route::get('/atribuicao', [FormacaoController::class, 'indexAtribuicaoTurmas'])->name('atribuicao.index');
+            Route::get('atribuicao', [FormacaoController::class, 'indexAtribuicaoTurmas'])->name('atribuicao.index');
 
             // NOVO: Rota para salvar a atribuição (usada na tela detalhada)
-            Route::post('/atribuicao/{aluno}', [FormacaoController::class, 'updateAtribuicaoAluno'])->name('atribuicao.update');
-            // LINHA CORRIGIDA: Usa o caminho e nome relativos ao grupo 'formacao'
-            Route::post('/turmas/apagar-tudo', [FormacaoController::class, 'destroyAllTurmas'])->name('turmas.destroy.all');
+            Route::post('atribuicao/{aluno}', [FormacaoController::class, 'updateAtribuicaoAluno'])->name('atribuicao.update');
+            
             // ... (o restante das rotas de formação) ...
-            Route::get('/notas', [FormacaoController::class, 'indexNotas'])->name('notas.index');
-            Route::get('/boletim', [FormacaoController::class, 'indexBoletim'])->name('boletim.index');
-            Route::get('/certificado', [FormacaoController::class, 'indexCertificado'])->name('certificado.index');
-            Route::get('/importar-dados', [FormacaoController::class, 'indexImportar'])->name('importar.index');
+            Route::get('notas', [FormacaoController::class, 'indexNotas'])->name('notas.index');
+            Route::get('boletim', [FormacaoController::class, 'indexBoletim'])->name('boletim.index');
+            Route::get('certificado', [FormacaoController::class, 'indexCertificado'])->name('certificado.index');
+            Route::get('importar-dados', [FormacaoController::class, 'indexImportar'])->name('importar.index');
         });
 });

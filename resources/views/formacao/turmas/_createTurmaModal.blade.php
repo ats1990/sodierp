@@ -2,89 +2,105 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="createTurmaModalLabel">Criar Nova Turma de Formação</h5>
+                {{-- Título atualizado para refletir a criação em lote --}}
+                <h5 class="modal-title" id="createTurmaModalLabel">Criar Múltiplas Turmas em Lote (Novo Ano Letivo)</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ route('formacao.turmas.store') }}" method="POST">
+            {{-- ATENÇÃO: Rota alterada para 'storeBulk' --}}
+            <form action="{{ route('formacao.turmas.storeBulk') }}" method="POST">
                 @csrf
                 <div class="modal-body">
-                    <p class="text-muted small">Preencha os dados da nova turma. Campos marcados com * são obrigatórios.</p>
+                    {{-- Exibição de erros gerais, se houver --}}
+                    @if ($errors->any())
+                        <div class="alert alert-danger">
+                            <p>Opa! Encontramos os seguintes problemas na submissão:</p>
+                            <ul>
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+                    
+                    <p class="text-info small">Use este modo para criar rapidamente todas as turmas de um novo Ano Letivo com configurações uniformes. A **nomenclatura sequencial** (Turma A, Turma B, ...) será gerada automaticamente.</p>
 
                     <div class="row g-3">
-                        {{-- Ano Letivo --}}
-                        <div class="col-md-4">
+                        {{-- 1. Ano Letivo --}}
+                        <div class="col-md-6">
                             <label for="ano_letivo" class="form-label fw-bold">Ano Letivo *</label>
-                            <input type="number" name="ano_letivo" id="ano_letivo" class="form-control" 
+                            <input type="number" name="ano_letivo" id="ano_letivo" 
+                                class="form-control @error('ano_letivo') is-invalid @enderror" 
                                 placeholder="Ex: {{ date('Y') }}" 
-                                value="{{ old('ano_letivo', date('Y')) }}" min="2020" max="2050" required>
-                        </div>
-
-                        {{-- Período --}}
-                        <div class="col-md-4">
-                            <label for="periodo" class="form-label fw-bold">Período *</label>
-                            <select name="periodo" id="periodo" class="form-select" required>
-                                <option value="" disabled selected>Selecione</option>
-                                @foreach(['Manhã', 'Tarde', 'Integral'] as $p)
-                                    <option value="{{ $p }}" {{ old('periodo') == $p ? 'selected' : '' }}>{{ $p }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        {{-- Letra --}}
-                        <div class="col-md-4">
-                            <label for="letra" class="form-label fw-bold">Letra / Identificador *</label>
-                            <input type="text" name="letra" id="letra" class="form-control text-uppercase" 
-                                placeholder="Ex: A, B, C, Única" value="{{ old('letra') }}" maxlength="10" required>
-                        </div>
-
-                        <hr class="mt-4 mb-3">
-
-                        {{-- Vagas --}}
-                        <div class="col-md-4">
-                            <label for="vagas" class="form-label fw-bold">Número de Vagas *</label>
-                            <input type="number" name="vagas" id="vagas" class="form-control" 
-                                placeholder="Capacidade máxima" value="{{ old('vagas') }}" min="1" required>
+                                value="{{ old('ano_letivo', date('Y')) }}" min="2000" max="2050" required>
+                            @error('ano_letivo') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         
-                        {{-- Professor (Assumindo que $professores está disponível na view) --}}
-                        <div class="col-md-8">
-                            <label for="professor_id" class="form-label fw-bold">Professor(a) Responsável (Opcional)</label>
-                            <select name="professor_id" id="professor_id" class="form-select">
-                                <option value="" selected>Nenhum professor atribuído</option>
-                                {{--
-                                    @if(isset($professores))
-                                        @foreach($professores as $professor)
-                                            <option value="{{ $professor->id }}" {{ old('professor_id') == $professor->id ? 'selected' : '' }}>
-                                                {{ $professor->nomeCompleto }}
-                                            </option>
-                                        @endforeach
-                                    @endif
-                                --}}
-                                <option value="1">Professor Teste A (Exemplo)</option>
-                                <option value="2">Professor Teste B (Exemplo)</option>
-                            </select>
+                        {{-- 2. Número de Vagas (vagas_geral) --}}
+                        <div class="col-md-6">
+                            <label for="vagas_geral" class="form-label fw-bold">Número de Vagas (Geral) *</label>
+                            <input type="number" name="vagas_geral" id="vagas_geral" 
+                                class="form-control @error('vagas_geral') is-invalid @enderror" 
+                                placeholder="Capacidade máxima por turma" value="{{ old('vagas_geral') }}" min="1" required>
+                            @error('vagas_geral') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
 
                         <hr class="mt-4 mb-3">
 
-                        {{-- Data Início --}}
+                        {{-- 3. Qtd. de Turmas (Manhã) --}}
                         <div class="col-md-6">
-                            <label for="data_inicio" class="form-label fw-bold">Data de Início (Opcional)</label>
-                            <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ old('data_inicio') }}">
+                            <label for="quantidade_manha" class="form-label fw-bold">Qtd. de Turmas (Manhã) *</label>
+                            <input type="number" name="quantidade_manha" id="quantidade_manha" 
+                                class="form-control @error('quantidade_manha') is-invalid @enderror" 
+                                value="{{ old('quantidade_manha', 0) }}" min="0" required>
+                            @error('quantidade_manha') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        
+                        {{-- 4. Qtd. de Turmas (Tarde) --}}
+                        <div class="col-md-6">
+                            <label for="quantidade_tarde" class="form-label fw-bold">Qtd. de Turmas (Tarde) *</label>
+                            <input type="number" name="quantidade_tarde" id="quantidade_tarde" 
+                                class="form-control @error('quantidade_tarde') is-invalid @enderror" 
+                                value="{{ old('quantidade_tarde', 0) }}" min="0" required>
+                            @error('quantidade_tarde') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
 
-                        {{-- Data Fim --}}
+                        <hr class="mt-4 mb-3">
+
+                        {{-- 5. Data Início --}}
                         <div class="col-md-6">
-                            <label for="data_fim" class="form-label fw-bold">Data de Conclusão (Opcional)</label>
-                            <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ old('data_fim') }}">
+                            <label for="data_inicio" class="form-label fw-bold">Data de Início *</label>
+                            <input type="date" name="data_inicio" id="data_inicio" 
+                                class="form-control @error('data_inicio') is-invalid @enderror" 
+                                value="{{ old('data_inicio') }}" required>
+                            @error('data_inicio') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+
+                        {{-- 6. Data Fim --}}
+                        <div class="col-md-6">
+                            <label for="data_fim" class="form-label fw-bold">Data de Conclusão *</label>
+                            <input type="date" name="data_fim" id="data_fim" 
+                                class="form-control @error('data_fim') is-invalid @enderror" 
+                                value="{{ old('data_fim') }}" required>
+                            {{-- Já havia um @error aqui, mas ajustei para usar invalid-feedback --}}
+                            @error('data_fim') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Criar Turma</button>
+                    <button type="submit" class="btn btn-primary">Criar Turmas em Lote</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+{{-- Script para reabrir o modal automaticamente em caso de falha de validação --}}
+@if ($errors->any() && Route::is('formacao.turmas.storeBulk'))
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var myModal = new bootstrap.Modal(document.getElementById('createTurmaModal'));
+            myModal.show();
+        });
+    </script>
+@endif
