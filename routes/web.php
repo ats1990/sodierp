@@ -80,7 +80,6 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::get('/alunos', [AlunoController::class, 'index'])->name('aluno.index');
 
     // ... (o restante das rotas de gerenciamento de usuários, programas, e formação) ...
-    // 💥 CORREÇÃO APLICADA AQUI: [UsuarioController::class, 'index']
     Route::get('/usuarios', [UsuarioController::class, 'index'])
         ->middleware('role:coordenacao')
         ->name('usuarios.index');
@@ -113,10 +112,9 @@ Route::middleware(['auth', 'check.status'])->group(function () {
             Route::get('/turmas', [FormacaoController::class, 'indexTurmas'])->name('turmas.index');
             Route::post('/turmas', [FormacaoController::class, 'storeTurmas'])->name('turmas.store');
             
-            // ROTA DE CRIAÇÃO EM LOTE
-            Route::post('/turmas/store-bulk', [FormacaoController::class, 'storeBulk'])->name('turmas.storeBulk');
+            // 💡 ROTA CORRIGIDA: Adicionada a definição para 'formacao.turmas.storeBulk'
+            Route::post('/turmas/bulk', [FormacaoController::class, 'storeBulk'])->name('turmas.storeBulk');
 
-            // 💥 CORREÇÃO PRINCIPAL AQUI: Rota específica deve vir antes da rota com parâmetro dinâmico
             // Rota para Excluir TODAS as Turmas (deve vir antes de 'turmas/{turma}')
             Route::delete('turmas/excluir-todas', [FormacaoController::class, 'destroyAllTurmas'])->name('turmas.destroyAll');
 
