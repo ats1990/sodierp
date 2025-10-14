@@ -79,7 +79,7 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     // 🔹 Listagem e Gerenciamento (CRUDs internos)
     Route::get('/alunos', [AlunoController::class, 'index'])->name('aluno.index');
 
-    // ... (o restante das rotas de gerenciamento de usuários, programas, e formação) ...
+    // ... (rotas de gerenciamento de usuários) ...
     Route::get('/usuarios', [UsuarioController::class, 'index'])
         ->middleware('role:coordenacao')
         ->name('usuarios.index');
@@ -121,13 +121,20 @@ Route::middleware(['auth', 'check.status'])->group(function () {
             // Rota para Excluir uma Turma ÚNICA (com parâmetro dinâmico)
             Route::delete('/turmas/{turma}', [FormacaoController::class, 'destroyTurma'])->name('turmas.destroy');
             
-            // Rota para atribuição rápida de aluno (dentro do modal)
-            Route::post('/turmas/atribuir', [FormacaoController::class, 'atribuirAlunoTurma'])->name('turmas.atribuir'); // Rota para o modal rápido
+            // 🚨 NOVO: Rota para exibir o formulário/modal de Atribuição Lógica (GET)
+            Route::get('/turmas/atribuir/form', [FormacaoController::class, 'showAtribuicaoRapidaLogica'])->name('turmas.atribuicao_logica_form');
+            
+            // 💡 AJUSTADO: Rota de POST de Atribuição RÁPIDA, agora executando a LÓGICA (em lote)
+            Route::post('/turmas/atribuir', [FormacaoController::class, 'atribuirAlunoTurma'])->name('turmas.atribuir');
 
+            // ROTAS DE ATRIBUIÇÃO DETALHADA
             // NOVO: Rota para a tela de Atribuição Detalhada (acessada pelo botão)
             Route::get('atribuicao', [FormacaoController::class, 'indexAtribuicaoTurmas'])->name('atribuicao.index');
+            
+            // 🚨 CORREÇÃO: Rota para Salvar Alterações em Massa (Bulk Update via botão)
+            Route::put('atribuicao/salvar', [FormacaoController::class, 'bulkUpdate'])->name('atribuicao.bulkUpdate');
 
-            // NOVO: Rota para salvar a atribuição (usada na tela detalhada)
+            // NOVO: Rota para salvar a atribuição (usada na tela detalhada - via AJAX, mantida por referência)
             Route::post('atribuicao/{aluno}', [FormacaoController::class, 'updateAtribuicaoAluno'])->name('atribuicao.update');
             
             // ... (o restante das rotas de formação) ...

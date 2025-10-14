@@ -73,6 +73,24 @@
                         </div>
                     </div>
 
+                    <div class="flex space-x-4">
+                        <div class="flex-1">
+                            <label for="mao_dominante" class="block font-medium">Mão Dominante</label>
+                            <select id="mao_dominante" name="mao_dominante"
+                                class="w-full border rounded px-3 py-2 text-sm">
+                                <option value="">Selecione</option>
+                                <option value="destro" {{ old('mao_dominante') == 'destro' ? 'selected' : '' }}>Destro</option>
+                                <option value="canhoto" {{ old('mao_dominante') == 'canhoto' ? 'selected' : '' }}>Canhoto</option>
+                            </select>
+                            @error('mao_dominante')
+                            <span class="text-red-500 text-xs mt-1">{{ $message }}</span>
+                            @enderror
+                        </div>
+                        <div class="flex-1">
+                            {{-- Deixado vazio para manter o layout de duas colunas, se necessário. --}}
+                            {{-- Você pode remover esta div se preferir que o campo ocupe a linha inteira. --}}
+                        </div>
+                    </div>
                     <!-- Linha 4: Já trabalhou | Tem Carteira | CT assinada -->
                     <div class="flex space-x-4">
                         <div class="flex-1">
@@ -141,9 +159,13 @@
             <div x-show="step === 3" x-cloak x-transition>
                 <h2 class="text-xl font-bold mb-4 text-brand border-b-2 border-brand pb-1">3 - ESCOLARIDADE</h2>
 
-                <div x-data="{ concluido: '{{ old('concluido') }}' }" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- O x-data inicia a variável 'concluido' para controle da visibilidade -->
+                <div x-data="{ concluido: '{{ old('concluido', '0') }}' }" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <!-- Escola -->
                     <input type="text" id="escola" name="escola" value="{{ old('escola') }}" placeholder="Escola" class="border rounded p-2">
 
+                    <!-- Ano/Série -->
                     <select id="ano" name="ano" class="border rounded p-2">
                         <option value="">Ano</option>
                         <option value="1º" {{ old('ano') === '1º' ? 'selected' : '' }}>1º</option>
@@ -152,31 +174,47 @@
                         <option value="9º" {{ old('ano') === '9º' ? 'selected' : '' }}>9º</option>
                     </select>
 
+                    <!-- Concluído? (Radio Buttons) -->
                     <div class="md:col-span-2">
-                        <input type="hidden" name="concluido" value="0">
-
-                        <label for="concluido" class="block font-medium">Concluído?</label>
-                        <div>
+                        <!-- Nota: O hidden input não é mais necessário, pois um dos radios sempre terá um valor -->
+                        <label for="concluido_label" class="block font-medium">Concluído?</label>
+                        <div id="concluido_label">
                             <label class="inline-flex items-center">
-                                <input type="radio" name="concluido" value="0" class="form-radio" x-model="concluido">
+                                <input type="radio" name="concluido" value="0" class="form-radio" x-model="concluido" {{ old('concluido', '0') == '0' ? 'checked' : '' }}>
                                 <span class="ml-2">Não</span>
                             </label>
                             <label class="inline-flex items-center ml-6">
-                                <input type="radio" name="concluido" value="1" class="form-radio" x-model="concluido">
+                                <input type="radio" name="concluido" value="1" class="form-radio" x-model="concluido" {{ old('concluido') == '1' ? 'checked' : '' }}>
                                 <span class="ml-2">Sim</span>
                             </label>
                         </div>
+                        @error('concluido')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                     </div>
 
+                    <!-- CAMPO CONDICIONAL: Período (Aparece se Concluído = NÃO / 0) -->
+                    <!-- Agora como <select> com as opções Manhã, Tarde, Noite -->
+                    <select id="periodo" name="periodo"
+                        class="border rounded p-2"
+                        x-show="concluido === '0'" x-cloak
+                        x-bind:required="concluido === '0' ? true : false"> <!-- Torna o campo obrigatório condicionalmente -->
+                        <option value="">Selecione o Período</option>
+                        <option value="manha" {{ old('periodo') == 'manha' ? 'selected' : '' }}>Manhã</option>
+                        <option value="tarde" {{ old('periodo') == 'tarde' ? 'selected' : '' }}>Tarde</option>
+                        <option value="noite" {{ old('periodo') == 'noite' ? 'selected' : '' }}>Noite</option>
+                    </select>
 
-                    <input type="text" id="periodo" name="periodo" value="{{ old('periodo') }}" placeholder="Período"
-                        class="border rounded p-2" x-show="concluido === '0'" x-cloak>
-
+                    <!-- CAMPO CONDICIONAL: Ano de Conclusão (Aparece se Concluído = SIM / 1) -->
                     <input type="text" id="anoConclusao" name="anoConclusao" value="{{ old('anoConclusao') }}" placeholder="Ano de Conclusão"
-                        class="border rounded p-2" x-show="concluido === '1'" x-cloak>
+                        class="border rounded p-2"
+                        x-show="concluido === '1'" x-cloak
+                        x-bind:required="concluido === '1' ? true : false">
 
+                    <!-- CAMPO CONDICIONAL: Curso Atual (Aparece se Concluído = SIM / 1) -->
+                    <!-- O curso atual geralmente é mais relevante para quem está estudando (Não concluído), mas mantive sua lógica original -->
                     <input type="text" id="cursoAtual" name="cursoAtual" value="{{ old('cursoAtual') }}" placeholder="Curso Atual"
-                        class="md:col-span-2 border rounded p-2" x-show="concluido === '1'" x-cloak>
+                        class="md:col-span-2 border rounded p-2"
+                        x-show="concluido === '1'" x-cloak>
+
                 </div>
             </div>
             <!-- Step 4 - Dados Socioeconômicos -->
@@ -548,42 +586,38 @@
             </div>
         </form>
     </div>
-   
-<div x-data="{ open: {{ session('success') ? 'true' : 'false' }} }">
-    
-    <!-- Modal -->
-    <div 
-        x-show="open" 
-        x-transition
-        class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
-    >
-        <div 
-            @click.away="open = false" 
-            class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 relative"
-        >
-            <!-- Fechar -->
-            <button 
-                @click="open = false" 
-                class="absolute top-3 right-3 text-gray-500 hover:text-gray-800"
-            >
-                &times;
-            </button>
 
-            <!-- Conteúdo do Modal -->
-            <h2 class="text-xl font-semibold mb-4">Sucesso!</h2>
-            <p>{{ session('success') }}</p>
+    <div x-data="{ open: {{ session('success') ? 'true' : 'false' }} }">
 
-            <div class="flex justify-end mt-4">
-                <button 
-                    @click="open = false" 
-                    class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-                >
-                    Fechar
+        <!-- Modal -->
+        <div
+            x-show="open"
+            x-transition
+            class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+            <div
+                @click.away="open = false"
+                class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 relative">
+                <!-- Fechar -->
+                <button
+                    @click="open = false"
+                    class="absolute top-3 right-3 text-gray-500 hover:text-gray-800">
+                    &times;
                 </button>
+
+                <!-- Conteúdo do Modal -->
+                <h2 class="text-xl font-semibold mb-4">Sucesso!</h2>
+                <p>{{ session('success') }}</p>
+
+                <div class="flex justify-end mt-4">
+                    <button
+                        @click="open = false"
+                        class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+                        Fechar
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
     <script>
         window.wizard = function() {

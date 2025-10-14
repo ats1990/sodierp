@@ -2,257 +2,542 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Turma;
 use App\Models\Aluno;
-use App\Models\Usuario;
+use App\Models\Turma;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Collection;
 
-/**
- * Controller responsável pela gestão das Turmas, Notas, Boletim e Certificados.
- */
 class FormacaoController extends Controller
 {
+    // =========================================================================
+    // MÉTODOS DE VISUALIZAÇÃO
+    // =========================================================================
+
     /**
-     * Exibe a tela principal de gestão de turmas. (formacao.turmas.index)
+     * Exibe a lista de alunos com filtro para atribuição de turma.
+     * Rota: formacao.atribuicao.index
      */
-    public function indexTurmas()
+    public function indexAtribuicaoTurmas(Request $request)
     {
-        // Puxa todos os usuários do tipo 'professor' para o dropdown
-        // Nota: Assumindo que a model Usuario está configurada para mapear a tabela 'usuarios'.
-        $professores = Usuario::where('tipo', 'professor')
-                                ->where('status', 'ativo')
-                                ->orderBy('nomeCompleto')
-                                ->get();
+        // 1. Obtém o ID da turma para filtro (padrão: 'todos')
+        $filtroTurmaId = $request->input('turma_id', 'todos');
 
-        // Carrega todas as turmas, ordenadas pelo ano e período
-        $turmas = Turma::with('professor') // Carrega o relacionamento com professor
-                       ->orderBy('ano_letivo', 'desc')
-                       ->orderBy('periodo')
-                       ->orderBy('letra')
-                       ->get();
+        // 2. Inicia a query nos alunos
+        $queryAlunos = Aluno::query();
 
-        // Carrega os alunos que ainda não estão atribuídos a nenhuma turma
-        $alunosNaoAtribuidos = Aluno::whereNull('turma_id')
-                                   ->orderBy('nomeCompleto')
-                                   ->get();
+        // 3. Aplica a lógica de filtro
+        if ($filtroTurmaId === 'nao_atribuidos') {
+            // Filtra alunos onde turma_id é NULL
+            $queryAlunos->whereNull('turma_id');
+        } elseif ($filtroTurmaId !== 'todos') {
+            // Filtra por uma turma específica
+            $queryAlunos->where('turma_id', $filtroTurmaId);
+        }
 
-        return view('formacao.turmas.index', compact('professores', 'turmas', 'alunosNaoAtribuidos'));
+        // 4. Busca todos os dados necessários
+        $turmas = Turma::withCount('alunos')->get(); // <--- Otimizado para contar alunos no DB
+        // Busca os alunos, ordenando por nomeCompleto para melhor visualização
+        $alunos = $queryAlunos->orderBy('nomeCompleto')->get();
+        
+        // 5. Define a Árvore de Navegação (Breadcrumb)
+        $breadcrumbs = [
+            ['name' => 'Formação', 'route' => 'formacao.turmas.index'], // Rota principal de Formação
+            ['name' => 'Turmas', 'route' => 'formacao.turmas.index'], // Você pode ter uma tela de listagem
+            ['name' => 'Atribuição Detalhada', 'route' => null] // Tela atual
+        ];
+
+        // Passa os dados para a view
+        return view('formacao.atribuicao.index', [
+            'turmas' => $turmas,
+            'alunos' => $alunos,
+            'filtroTurmaId' => $filtroTurmaId,
+        ]);
     }
 
     /**
-     * Cria uma nova turma única. (formacao.turmas.store)
+     * Exibe a lista principal de Turmas (Classes).
+     * Rota: formacao.turmas.index
+     */
+    public function indexTurmas(Request $request)
+    {
+        // Busca todas as turmas, contando quantos alunos estão atribuídos a cada uma
+        $turmas = Turma::withCount('alunos')
+            ->orderBy('ano_letivo', 'desc')
+            ->orderBy('periodo')
+            ->orderBy('letra')
+            ->get();
+
+        // Retorna a view de índice de turmas, passando os dados
+        return view('formacao.turmas.index', compact('turmas'));
+    }
+
+    // =========================================================================
+    // MÉTODOS DE GERENCIAMENTO DE TURMAS (Criação e Exclusão)
+    // =========================================================================
+
+    /**
+     * Adiciona uma nova turma. (Criação de Turma Única)
+     * Rota: formacao.turmas.store
      */
     public function storeTurmas(Request $request)
     {
-        $validated = $request->validate([
-            'periodo' => ['required', 'string', 'max:191'],
-            'letra' => ['required', 'string', 'max:1'],
-            'ano_letivo' => ['required', 'integer', 'digits:4'],
-            'vagas' => ['nullable', 'integer', 'min:1'],
-            'professor_id' => ['nullable', 'exists:usuarios,id'],
-            'data_inicio' => ['nullable', 'date'],
-            'data_fim' => ['nullable', 'date', 'after_or_equal:data_inicio'],
+        $request->validate([
+            'periodo' => 'required|string|max:191',
+            'letra' => 'required|string|max:1',
+            'ano_letivo' => 'required|integer|min:2020|max:2099',
+            'vagas' => 'required|integer|min:1|max:200',
+            'data_inicio' => 'nullable|date',
+            'data_fim' => 'nullable|date|after_or_equal:data_inicio',
         ]);
 
         try {
-            Turma::create($validated);
-            return back()->with('success', 'Turma criada com sucesso!');
-        } catch (\Illuminate\Database\QueryException $e) {
-            // Verifica se o erro é de chave única duplicada (ex: se já existe a turma)
-            if (str_contains($e->getMessage(), 'Duplicate entry')) { 
-                return back()->withErrors(['unique_violation' => 'Já existe uma turma cadastrada com o mesmo Período, Letra e Ano Letivo.'])->withInput();
-            }
-            return back()->with('error', 'Erro ao criar a turma: ' . $e->getMessage())->withInput();
+            Turma::create($request->all());
+
+            return redirect()->route('formacao.turmas.index')->with('success', 'Turma criada com sucesso!');
         } catch (\Exception $e) {
-            return back()->with('error', 'Erro inesperado: ' . $e->getMessage())->withInput();
+            \Log::error("Erro ao criar turma: " . $e->getMessage());
+            return redirect()->route('formacao.turmas.index')->with('error', 'Falha ao criar turma. Tente novamente.');
         }
     }
 
     /**
-     * Cria múltiplas turmas de uma vez (em massa), gerando-as a partir de parâmetros gerais do modal.
-     * (formacao.turmas.storeBulk)
+     * Cria múltiplas turmas de uma vez (Bulk Store).
+     * Rota: formacao.turmas.storeBulk
      */
     public function storeBulk(Request $request)
     {
-        // 1. Valida os campos que SÃO enviados pelo seu modal
-        $validated = $request->validate([
-            'ano_letivo' => ['required', 'integer', 'digits:4'],
-            'vagas_geral' => ['required', 'integer', 'min:1'],
-            'quantidade_manha' => ['required', 'integer', 'min:0'],
-            'quantidade_tarde' => ['required', 'integer', 'min:0'],
-            'data_inicio' => ['required', 'date'],
-            'data_fim' => ['required', 'date', 'after_or_equal:data_inicio'],
+        // 1. Validação dos campos consolidados
+        $request->validate([
+            'ano_letivo' => 'required|integer|min:2000|max:2050',
+            'vagas_geral' => 'required|integer|min:1|max:200',
+            'quantidade_manha' => 'nullable|integer|min:0',
+            'quantidade_tarde' => 'nullable|integer|min:0',
+            'quantidade_noite' => 'nullable|integer|min:0',
+            'data_inicio' => 'nullable|date',
+            'data_fim' => 'nullable|date|after_or_equal:data_inicio',
         ]);
 
-        // 2. Verifica a quantidade total de turmas a serem criadas
-        if ($validated['quantidade_manha'] + $validated['quantidade_tarde'] === 0) {
-            return back()->withErrors(['quantidade' => 'É necessário criar pelo menos uma turma (Manhã ou Tarde).'])->withInput();
+        // 2. Coleta e default dos valores 
+        $qManha = (int) $request->input('quantidade_manha', 0);
+        $qTarde = (int) $request->input('quantidade_tarde', 0);
+        $qNoite = (int) $request->input('quantidade_noite', 0);
+
+        // 3. Verifica se pelo menos uma turma será criada
+        if ($qManha + $qTarde + $qNoite === 0) {
+            throw ValidationException::withMessages([
+                'quantidade_manha' => 'Você deve especificar a criação de pelo menos uma turma em qualquer período (Manhã, Tarde ou Noite).',
+            ]);
         }
-        
-        $turmasParaCriar = [];
-        $letras = range('A', 'Z'); // Define as letras para as turmas (A, B, C...)
-        
-        $turmaBase = [
-            'ano_letivo' => $validated['ano_letivo'],
-            'vagas' => $validated['vagas_geral'],
-            'data_inicio' => $validated['data_inicio'],
-            'data_fim' => $validated['data_fim'],
-            'professor_id' => null, // Assumindo que o professor será atribuído depois
+
+        $turmasData = [];
+        $letras = range('A', 'Z');
+        $letrasIndex = 0;
+
+        $baseData = [
+            'ano_letivo' => $request->ano_letivo,
+            'vagas' => $request->vagas_geral,
+            'data_inicio' => $request->data_inicio,
+            'data_fim' => $request->data_fim,
         ];
 
-        // 3. Geração das turmas da MANHÃ
-        $qtdManha = $validated['quantidade_manha'];
-        if ($qtdManha > 0) {
-            for ($i = 0; $i < $qtdManha; $i++) {
-                // Verifica se não vai exceder o alfabeto
-                if (!isset($letras[$i])) {
-                     return back()->withErrors(['quantidade_manha' => 'A quantidade de turmas da manhã excede o número de letras disponíveis (A-Z).'])->withInput();
+        // Função auxiliar para gerar turmas por período
+        $gerarTurmas = function ($periodo, $quantidade, &$letrasIndex, $baseData) use ($letras, &$turmasData) {
+            for ($i = 0; $i < $quantidade; $i++) {
+                if ($letrasIndex >= count($letras)) {
+                    \Log::warning("Limite de letras atingido na criação em lote.");
+                    break;
                 }
-                $turmasParaCriar[] = array_merge($turmaBase, [
-                    'periodo' => 'Manhã',
-                    'letra' => $letras[$i],
-                ]);
-            }
-        }
 
-        // 4. Geração das turmas da TARDE
-        $qtdTarde = $validated['quantidade_tarde'];
-        if ($qtdTarde > 0) {
-            for ($i = 0; $i < $qtdTarde; $i++) {
-                // Verifica se não vai exceder o alfabeto
-                if (!isset($letras[$i])) {
-                     return back()->withErrors(['quantidade_tarde' => 'A quantidade de turmas da tarde excede o número de letras disponíveis (A-Z).'])->withInput();
-                }
-                $turmasParaCriar[] = array_merge($turmaBase, [
-                    'periodo' => 'Tarde',
-                    'letra' => $letras[$i], // Reinicia a letra A para o período da tarde
+                $turmasData[] = array_merge($baseData, [
+                    'periodo' => $periodo,
+                    'letra' => $letras[$letrasIndex++],
                 ]);
             }
-        }
-        
-        // 5. Inserção no banco de dados
+        };
+
+        // 4. Gera os dados das turmas sequencialmente
+        $gerarTurmas('Manhã', $qManha, $letrasIndex, $baseData);
+        $gerarTurmas('Tarde', $qTarde, $letrasIndex, $baseData);
+        $gerarTurmas('Noite', $qNoite, $letrasIndex, $baseData);
+
+
+        // 5. Criação em Massa (usando transação)
+        DB::beginTransaction();
         try {
-            $count = count($turmasParaCriar);
-            DB::beginTransaction();
-            foreach ($turmasParaCriar as $data) {
-                // Usar create() garante que os timestamps sejam preenchidos
-                Turma::create($data); 
+            $turmasCriadas = 0;
+
+            foreach ($turmasData as $data) {
+                Turma::create($data);
+                $turmasCriadas++;
             }
+
             DB::commit();
 
-            return back()->with('success', $count . ' turmas criadas em massa com sucesso!');
-            
-        } catch (\Illuminate\Database\QueryException $e) {
+            return redirect()->route('formacao.turmas.index')
+                ->with('success', "$turmasCriadas turmas foram criadas em lote com sucesso!");
+        } catch (ValidationException $e) {
             DB::rollBack();
-            // Verifica se o erro é de chave única duplicada (Turma A Manhã já existe para aquele ano)
-            if (str_contains($e->getMessage(), 'Duplicate entry')) { 
-                return back()->withErrors(['unique_violation' => 'Já existe uma ou mais turmas com a mesma combinação de Período, Letra e Ano Letivo. Verifique se o ano letivo já foi iniciado.'])->withInput();
-            }
-            return back()->with('error', 'Erro ao criar turmas em massa: ' . $e->getMessage())->withInput();
+            // CORREÇÃO: Adiciona a flag de sessão para reabrir o modal SOMENTE em erro de validação
+            return redirect()->back()->withErrors($e->errors())->withInput()->with('open_create_turma_modal', true);
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Erro inesperado: ' . $e->getMessage())->withInput();
+            \Log::error("Erro ao criar turmas em lote: " . $e->getMessage());
+
+            return redirect()->route('formacao.turmas.index')
+                ->with('error', 'Falha ao criar turmas em lote. Tente novamente.');
         }
     }
 
 
     /**
-     * Exclui todas as turmas. (formacao.turmas.destroyAll)
+     * Exclui TODAS as turmas e desvincula os alunos.
+     * Rota: formacao.turmas.destroyAll
      */
-    public function destroyAllTurmas()
+    public function destroyAllTurmas(Request $request)
     {
+        DB::beginTransaction();
         try {
-            DB::statement('SET FOREIGN_KEY_CHECKS=0');
-
-            // 1. Limpa o Foreign Key (turma_id) em todos os alunos
+            // 1. Desvincula todos os alunos (seta turma_id para NULL)
             Aluno::whereNotNull('turma_id')->update(['turma_id' => null]);
 
-            // 2. Limpa todas as turmas
-            Turma::truncate();
+            // 2. Exclui todas as turmas
+            $count = Turma::count();
+            // Turma::truncate(); // LINHA ORIGINAL (CAUSA O ERRO DE TRANSAÇÃO)
+            Turma::query()->delete(); // CORREÇÃO: Usa DELETE FROM, respeitando o DB::beginTransaction()
 
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            DB::commit();
 
-            return back()->with('success', 'Todas as turmas foram excluídas e as atribuições de alunos foram removidas.');
+            return redirect()->route('formacao.turmas.index')
+                ->with('success', "Todas as $count turmas foram excluídas e os alunos desvinculados com sucesso.");
         } catch (\Exception $e) {
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
-            return back()->with('error', 'Erro ao excluir todas as turmas: ' . $e->getMessage());
+            DB::rollBack();
+            \Log::error("Falha ao excluir todas as turmas: " . $e->getMessage());
+
+            return redirect()->route('formacao.turmas.index')
+                ->with('error', 'Erro ao excluir todas as turmas. Detalhes: ' . $e->getMessage());
         }
     }
-    
+
     /**
-     * Exclui uma única turma. (formacao.turmas.destroy)
+     * Exclui uma turma específica e desvincula seus alunos.
+     * Rota: formacao.turmas.destroy
      */
     public function destroyTurma(Turma $turma)
     {
+        DB::beginTransaction();
         try {
-            // Desvincula primeiro os alunos desta turma específica
+            $turmaNome = "{$turma->letra} - {$turma->periodo} ({$turma->ano_letivo})";
+
+            // 1. Desvincula os alunos desta turma (seta turma_id para NULL)
             Aluno::where('turma_id', $turma->id)->update(['turma_id' => null]);
 
+            // 2. Exclui a turma
             $turma->delete();
-            return back()->with('success', 'Turma excluída com sucesso! Os alunos foram desvinculados.');
+
+            DB::commit();
+
+            return redirect()->route('formacao.turmas.index')
+                ->with('success', "A turma '{$turmaNome}' foi excluída e seus alunos foram desvinculados.");
         } catch (\Exception $e) {
-            return back()->with('error', 'Erro ao excluir a turma: ' . $e->getMessage());
+            DB::rollBack();
+            \Log::error("Falha ao excluir a turma {$turma->id}: " . $e->getMessage());
+
+            return redirect()->route('formacao.turmas.index')
+                ->with('error', "Erro ao excluir a turma 'ID: {$turma->id}'. Detalhes: " . $e->getMessage());
         }
     }
 
+    // =========================================================================
+    // MÉTODOS DE ATRIBUIÇÃO
+    // =========================================================================
+
     /**
-     * Atribui um aluno a uma turma (usado no modal rápido). (formacao.turmas.atribuir)
+     * Processa a submissão do formulário de atualização em massa (Bulk Update).
+     * Rota: formacao.atribuicao.bulkUpdate
+     */
+    public function bulkUpdate(Request $request)
+    {
+        $request->validate(['alunos' => 'required|array',]);
+
+        $alunosParaAtualizar = $request->input('alunos');
+        $alunosIds = array_keys($alunosParaAtualizar);
+        $totalAtualizados = 0;
+
+        $alunos = Aluno::whereIn('id', $alunosIds)->get()->keyBy('id');
+
+        DB::beginTransaction();
+        try {
+            foreach ($alunosParaAtualizar as $alunoId => $turmaId) {
+                $newTurmaId = ($turmaId == 0) ? null : (int)$turmaId;
+
+                if ($aluno = $alunos->get($alunoId)) {
+                    if ($aluno->turma_id !== $newTurmaId) {
+                        $aluno->turma_id = $newTurmaId;
+                        $aluno->save();
+                        $totalAtualizados++;
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('formacao.atribuicao.index', ['turma_id' => $request->input('turma_id')])
+                ->with('success', "As atribuições de turma foram salvas com sucesso! Total de $totalAtualizados alunos atualizados.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error("Falha na atualização em massa de atribuição de alunos: " . $e->getMessage());
+
+            return redirect()->route('formacao.atribuicao.index', ['turma_id' => $request->input('turma_id')])
+                ->with('error', 'Erro ao salvar as atribuições de turma. Detalhes: ' . $e->getMessage());
+        }
+    }
+
+    // ---------------------------------------------------------------------------------
+    // MÉTODOS DE ATRIBUIÇÃO INDIVIDUAL/LÓGICA
+    // ---------------------------------------------------------------------------------
+
+    /**
+     * Auxiliar para determinar os períodos de contraturno para um turno atual.
+     * @param string|null $currentTurno O turno atual do aluno ('Manhã', 'Tarde', 'Noite').
+     * @return array Os períodos de contraturno elegíveis, priorizados por Manhã > Tarde > Noite.
+     */
+    private function getContraturnoPeriods(?string $currentTurno): array
+    {
+        $allPeriods = ['Manhã', 'Tarde', 'Noite'];
+
+        // Se o turno atual for inválido ou nulo (o mais provável problema de atribuição), 
+        // o aluno é elegível para TODOS os turnos, evitando ser barrado.
+        if (empty($currentTurno) || !in_array($currentTurno, $allPeriods)) {
+            if (!empty($currentTurno)) {
+                \Log::warning("Aluno encontrado com turnoAtual ('{$currentTurno}') inválido/vazio. Aplicando fallback para todos os contraturnos.");
+            }
+            return $allPeriods;
+        }
+
+        // Filtra os contraturnos
+        $contraturnoPeriods = [];
+        foreach ($allPeriods as $period) {
+            if ($period !== $currentTurno) {
+                $contraturnoPeriods[] = $period;
+            }
+        }
+
+        // Garante a ordem de prioridade (Manhã, Tarde, Noite) para homogeneidade
+        usort($contraturnoPeriods, function ($a, $b) {
+            $order = ['Manhã' => 1, 'Tarde' => 2, 'Noite' => 3];
+            return ($order[$a] ?? 99) <=> ($order[$b] ?? 99);
+        });
+
+        return $contraturnoPeriods;
+    }
+
+    /**
+     * Se esta rota fosse chamada (GET), ela provavelmente mostraria o modal.
+     * Rota: formacao.turmas.logica
+     */
+    public function showAtribuicaoRapidaLogica(Request $request)
+    {
+        return redirect()->route('formacao.atribuicao.index', $request->query());
+    }
+
+    /**
+     * Executa a lógica de Atribuição Rápida Inteligente.
+     * Rota: formacao.turmas.atribuir (POST)
      */
     public function atribuirAlunoTurma(Request $request)
     {
-        $validated = $request->validate([
-            'aluno_id' => ['required', 'exists:alunos,id'],
-            'turma_id' => ['required', 'exists:turmas,id'],
+        // 1. Validação dos inputs do modal
+        $request->validate([
+            'atribuir_canhotos_separadamente' => 'nullable|in:1,0',
+            'turma_canhoto_manha' => 'nullable|exists:turmas,id',
+            'turma_canhoto_tarde' => 'nullable|exists:turmas,id',
         ]);
 
+        DB::beginTransaction();
         try {
-            $aluno = Aluno::find($validated['aluno_id']);
-            $aluno->turma_id = $validated['turma_id'];
-            $aluno->save();
+            // 2. Coletar Turmas e Alunos
+            $turmas = Turma::with('alunos')->get()->keyBy('id');
 
-            return back()->with('success', 'Aluno atribuído à turma com sucesso.');
+            // Busca alunos não atribuídos, ordenados alfabeticamente para homogeneidade
+            $alunosNaoAtribuidos = Aluno::whereNull('turma_id')
+                ->orderBy('nomeCompleto')
+                ->get();
+
+            $canhotos = $alunosNaoAtribuidos->where('canhoto', 1);
+            $restantes = $alunosNaoAtribuidos->where('canhoto', 0);
+
+            $alunosToSave = new Collection(); // Coleção para armazenar alunos modificados
+            $turmasDisponiveis = $turmas->pluck('id')->toArray();
+
+            // =======================================================
+            // 3. ATRIBUIÇÃO DE CANHOTOS (Prioridade 1 - Turmas Reservadas)
+            // =======================================================
+            $atribuirCanhotosSeparadamente = (bool) $request->input('atribuir_canhotos_separadamente', false);
+
+            if ($atribuirCanhotosSeparadamente && $canhotos->isNotEmpty()) {
+                $turmasCanhotos = [];
+                $reservadasIds = [];
+
+                if ($turmaIdManha = $request->input('turma_canhoto_manha')) {
+                    $turmasCanhotos[$turmaIdManha] = $turmas->get($turmaIdManha);
+                    $reservadasIds[] = (int)$turmaIdManha;
+                }
+                if ($turmaIdTarde = $request->input('turma_canhoto_tarde')) {
+                    $turmasCanhotos[$turmaIdTarde] = $turmas->get($turmaIdTarde);
+                    $reservadasIds[] = (int)$turmaIdTarde;
+                }
+
+                $turmasDisponiveis = array_diff($turmasDisponiveis, $reservadasIds);
+
+                if (!empty($turmasCanhotos)) {
+                    $turmasCanhotosIndex = array_values($turmasCanhotos);
+                    $turmaAtualIndex = 0;
+
+                    foreach ($canhotos as $aluno) {
+                        $turmaAtual = $turmasCanhotosIndex[$turmaAtualIndex];
+                        $vagasOcupadas = $turmaAtual->alunos->count();
+
+                        if ($vagasOcupadas < $turmaAtual->vagas) {
+                            $aluno->turma_id = $turmaAtual->id;
+
+                            // Adiciona para salvar e atualiza a contagem in-memory
+                            $alunosToSave->push($aluno);
+                            $turmaAtual->alunos->push($aluno);
+                        } else {
+                            // Turma reservada cheia: canhoto vai para o grupo de restantes
+                            $restantes->push($aluno);
+                        }
+
+                        $turmaAtualIndex = ($turmaAtualIndex + 1) % count($turmasCanhotosIndex);
+                    }
+                } else {
+                    // Nenhuma turma reservada selecionada
+                    $restantes = $restantes->merge($canhotos);
+                }
+            } else {
+                // Opção de separação não marcada
+                $restantes = $restantes->merge($canhotos);
+            }
+
+            // =======================================================
+            // 4. ATRIBUIÇÃO HOMOGÊNEA DOS RESTANTES (Contraturno e Homogeneidade)
+            // =======================================================
+
+            if ($restantes->isNotEmpty()) {
+                $turmasRegulares = $turmas->only($turmasDisponiveis);
+
+                foreach ($restantes as $aluno) {
+
+                    // 4.1 Determinar o Contraturno (com fallback se turnoAtual estiver vazio)
+                    $contraturnoPeriods = $this->getContraturnoPeriods($aluno->turnoAtual);
+
+                    // 4.2 Encontra a turma regular que é Contraturno, tem vagas e a menor lotação
+                    $turmaMenorLotacao = $turmasRegulares
+                        ->filter(function ($turma) use ($contraturnoPeriods) {
+                            return $turma->alunos->count() < $turma->vagas &&
+                                in_array($turma->periodo, $contraturnoPeriods);
+                        })
+                        ->sortBy(function ($turma) {
+                            return $turma->alunos->count(); // Ordena pela menor lotação (homogeneidade)
+                        })
+                        ->first();
+
+                    if ($turmaMenorLotacao) {
+                        $aluno->turma_id = $turmaMenorLotacao->id;
+
+                        // Adiciona para salvar e atualiza a contagem in-memory
+                        $alunosToSave->push($aluno);
+                        $turmaMenorLotacao->alunos->push($aluno);
+                    } else {
+                        // Não encontrou turma (cheia ou sem contraturno adequado)
+                        \Log::info("Aluno '{$aluno->nomeCompleto}' (Turno: {$aluno->turnoAtual}) não atribuído. Turmas lotadas ou sem contraturno disponível.");
+                        continue;
+                    }
+                }
+            }
+
+            // =======================================================
+            // 5. SALVAMENTO EM MASSA E COMMIT
+            // =======================================================
+            if ($alunosToSave->isNotEmpty()) {
+                foreach ($alunosToSave as $aluno) {
+                    $aluno->save(); // Salva todos os alunos atribuídos
+                }
+            }
+
+            $alunosAtribuidosCount = $alunosToSave->count();
+            DB::commit();
+
+            if ($alunosAtribuidosCount > 0) {
+                // CORREÇÃO: Volta para a página anterior, onde o modal foi aberto.
+                return redirect()->back()
+                    ->with('success', "Atribuição Rápida concluída! **$alunosAtribuidosCount** alunos foram distribuídos no contraturno.");
+            } else {
+                // CORREÇÃO: Volta para a página anterior, onde o modal foi aberto.
+                return redirect()->back()
+                    ->with('warning', "Atribuição Rápida concluída, mas nenhum aluno pôde ser distribuído (falta de vagas, conflito de contraturno, ou não haviam alunos sem turma).");
+            }
         } catch (\Exception $e) {
-            return back()->with('error', 'Erro ao atribuir aluno: ' . $e->getMessage());
+            DB::rollBack();
+            \Log::error("Erro CRÍTICO na Atribuição Lógica: " . $e->getMessage());
+
+            // CORREÇÃO: Volta para a página anterior, onde o modal foi aberto.
+            return redirect()->back()
+                ->with('error', 'Falha grave na Atribuição Rápida Inteligente. Por favor, verifique o log para detalhes técnicos: ' . $e->getMessage());
         }
     }
 
     /**
-     * Exibe a tela de atribuição detalhada de turmas. (formacao.atribuicao.index)
-     */
-    public function indexAtribuicaoTurmas()
-    {
-        $turmas = Turma::orderBy('ano_letivo', 'desc')->orderBy('periodo')->get();
-        $alunos = Aluno::orderBy('nomeCompleto')->get(); // Todos os alunos
-
-        return view('formacao.atribuicao.index', compact('turmas', 'alunos'));
-    }
-
-    /**
-     * Atualiza a atribuição de um aluno na tela detalhada. (formacao.atribuicao.update)
+     * Método de atualização individual (via AJAX/POST, mantido por referência).
+     * CORRIGIDO: Removido caractere inválido no início da linha.
      */
     public function updateAtribuicaoAluno(Request $request, Aluno $aluno)
     {
-        $validated = $request->validate([
-            'turma_id' => ['nullable', 'exists:turmas,id'], 
-        ]);
+        $newTurmaId = $request->input('turma_id');
 
         try {
-            $aluno->turma_id = $validated['turma_id'] ?? null;
+            $aluno->turma_id = ($newTurmaId == '0' || $newTurmaId === null) ? null : (int)$newTurmaId;
             $aluno->save();
 
-            // Tenta obter o nome da turma para a mensagem
-            $turmaNome = $aluno->turma_id ? $aluno->turma->nomeCompleto : 'desvinculada';
+            $turmaNome = $aluno->turma ? $aluno->turma->nome : 'NÃO ATRIBUÍDO';
+            $turmaIdRetorno = $aluno->turma_id ?? 0;
 
-            return back()->with('success', "Atribuição de {$aluno->nomeCompleto} atualizada para a turma: {$turmaNome}.");
+            return response()->json([
+                'success' => true,
+                'message' => 'Turma atribuída com sucesso.',
+                'turma_nome' => $turmaNome,
+                'turma_id' => $turmaIdRetorno
+            ]);
         } catch (\Exception $e) {
-            return back()->with('error', 'Erro ao atualizar atribuição: ' . $e->getMessage());
+            \Log::error("Erro ao salvar atribuição para aluno {$aluno->id}: " . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro interno do servidor. Verifique o log para mais detalhes.',
+                'details' => $e->getMessage()
+            ], 500);
         }
     }
-    
-    // Métodos stubs para as outras telas do menu Formação
-    public function indexNotas() { return view('formacao.notas.index'); }
-    public function indexBoletim() { return view('formacao.boletim.index'); }
-    public function indexCertificado() { return view('formacao.certificado.index'); }
-    public function indexImportar() { return view('formacao.importar.index'); }
+
+    // =========================================================================
+    // MÉTODOS DE PLACEHOLDER PARA ROTAS (Formação)
+    // =========================================================================
+    public function indexNotas()
+    {
+        throw new \Exception('Método indexNotas não implementado.');
+    }
+    public function indexBoletim()
+    {
+        throw new \Exception('Método indexBoletim não implementado.');
+    }
+    public function indexCertificado()
+    {
+        throw new \Exception('Método indexCertificado não implementado.');
+    }
+    public function indexImportar()
+    {
+        throw new \Exception('Método indexImportar não implementado.');
+    }
 }

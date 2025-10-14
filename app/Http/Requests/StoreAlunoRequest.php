@@ -45,6 +45,11 @@ class StoreAlunoRequest extends FormRequest
             'idade' => 'required|integer|min:0|max:120',
             'cpf' => ['required', 'string', 'unique:alunos,cpf', 'digits:11'],
             'rg' => 'nullable|string|max:20',
+            
+            // Mão Dominante
+            'mao_dominante' => 'required|in:destro,canhoto',
+
+            // Dados de Endereço
             'cep' => 'nullable|string|max:8',
             'rua' => 'nullable|string|max:255',
             'numero' => 'nullable|string|max:10',
@@ -56,15 +61,26 @@ class StoreAlunoRequest extends FormRequest
             'celular' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
 
-            // Escolaridade
+            // Dados de Trabalho (Sintaxe limpa de caracteres de espaço especiais)
+            'carteiraTrabalho' => 'nullable|in:sim,nao',
+            'jaTrabalhou' => 'nullable|in:sim,nao',
+            'ctpsAssinada' => 'nullable|in:sim,nao',
+            'qualFuncao' => 'nullable|string|max:255',
+
+            // Escolaridade - REGRAS ATUALIZADAS
             'escola' => 'nullable|string|max:255',
             'ano' => 'nullable|string|max:20',
-            'periodo' => 'nullable|string|max:20',
-            'concluido' => 'required|boolean',
-            'anoConclusao' => 'nullable|string|max:10',
+            'concluido' => 'required|boolean', // 0 = Não, 1 = Sim
+
+            // Se CONCLUÍDO = NÃO (0), PERÍODO é obrigatório e deve ser 'manha', 'tarde' ou 'noite'
+            'periodo' => 'nullable|required_if:concluido,0|in:manha,tarde,noite',
+            
+            // Se CONCLUÍDO = SIM (1), ANO DE CONCLUSÃO é obrigatório
+            'anoConclusao' => 'nullable|required_if:concluido,1|string|max:10',
+            
             'cursoAtual' => 'nullable|string|max:255',
 
-            // Condição social
+            // Condição social e Benefícios
             'moradia' => 'nullable|string|max:50',
             'moradia_porquem' => 'nullable|string|max:255',
             'beneficio' => 'required|in:Sim,Não',
@@ -75,6 +91,16 @@ class StoreAlunoRequest extends FormRequest
             'renda_cidada' => 'nullable|numeric|min:0',
             'outros' => 'nullable|numeric|min:0',
             'observacoes' => 'nullable|string',
+            
+            // Gastos Essenciais (Adicionado para robustez do formulário)
+            'agua' => 'nullable|numeric|min:0',
+            'alimentacao' => 'nullable|numeric|min:0',
+            'gas' => 'nullable|numeric|min:0',
+            'luz' => 'nullable|numeric|min:0',
+            'medicamento' => 'nullable|numeric|min:0',
+            'telefone_internet' => 'nullable|numeric|min:0',
+            'aluguel_financiamento' => 'nullable|numeric|min:0',
+
 
             // Saúde
             'ubs' => 'nullable|string|max:255',
@@ -141,6 +167,13 @@ class StoreAlunoRequest extends FormRequest
             'cpf.digits' => 'O CPF deve conter exatamente 11 números.',
             'dataNascimento.before' => 'A data de nascimento deve ser anterior a hoje.',
             'idade.max' => 'A idade não pode ser maior que 120 anos.',
+            'mao_dominante.required' => 'O campo Mão Dominante é obrigatório.',
+            
+            // ESCOLARIDADE - MENSAGENS CONDICIONAIS
+            'concluido.required' => 'A indicação de conclusão da escolaridade é obrigatória.',
+            'periodo.required_if' => 'O campo Período é obrigatório quando a escolaridade não está concluída.',
+            'periodo.in' => 'O valor selecionado para Período é inválido (escolha Manhã, Tarde ou Noite).',
+            'anoConclusao.required_if' => 'O campo Ano de Conclusão é obrigatório quando a escolaridade está concluída.',
 
             // Mensagens específicas para campos de rádio
             'beneficio.required' => 'O campo Benefício é obrigatório.',
