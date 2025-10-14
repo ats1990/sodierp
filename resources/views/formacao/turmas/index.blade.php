@@ -11,9 +11,6 @@
     </nav>
 </div>
 
-<!-- =================================================== -->
-<!-- ÁREA DE MENSAGENS (Sucesso, Erro ou Validação) -->
-<!-- =================================================== -->
 @if (session('success'))
     <div class="alert alert-success alert-dismissible fade show" role="alert">
         {{ session('success') }}
@@ -72,7 +69,7 @@
                     </div>
                 </div>
                 
-                <p class="card-description">Gerencie as turmas disponíveis para a formação. Use a coluna "Alunos" para ver a lista de alunos da turma.</p>
+                <p class="card-description">Gerencie as turmas disponíveis para a formação. Use a coluna "Visualizar turma" para ver a lista de alunos.</p>
 
                 <div class="table-responsive">
                     <table class="table table-hover">
@@ -83,8 +80,9 @@
                                 <th>Período</th>
                                 <th class="text-center">Vagas</th>
                                 <th class="text-center">Alunos</th>
-                                <th>Professor(a)</th>
-                                <th class="text-center">Ações</th>
+                                {{-- CABEÇALHO DO BOTÃO --}}
+                                <th>Visualizar Turma</th>
+                                <th class="text-center">Ações</th> 
                             </tr>
                         </thead>
                         <tbody>
@@ -100,13 +98,18 @@
                                             {{ $turma->alunos->count() }} / {{ $turma->vagas }}
                                         </span>
                                     </td>
+                                    {{-- CÉLULA COM O BOTÃO --}}
                                     <td>
-                                        @if($turma->professor)
-                                            {{ $turma->professor->nomeCompleto }}
-                                        @else
-                                            <span class="text-muted small">Não atribuído</span>
-                                        @endif
+                                        <button type="button" class="btn btn-primary btn-sm btn-visualizar-alunos"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#viewAlunosModal"
+                                            data-turma-id="{{ $turma->id }}"
+                                            title="Visualizar alunos desta turma"
+                                        >
+                                            <i class="mdi mdi-account-group-outline"></i> Visualizar turma
+                                        </button>
                                     </td>
+
                                     <td class="text-center">
                                         {{-- Botão para a Exclusão Individual (Modal) --}}
                                         <button type="button" class="btn btn-outline-danger btn-sm"
@@ -145,8 +148,10 @@
 
 {{-- =================================================== --}}
 {{-- INCLUSÃO DOS MODAIS DE AÇÃO --}}
-{{-- Os modais precisam ser incluídos fora do card-body/card para funcionar corretamente --}}
 {{-- =================================================== --}}
+
+{{-- Modal para Visualizar Alunos na Turma (INCLUÍDO) --}}
+@include('formacao.turmas._viewAlunosModal')
 
 {{-- Modal para Criar Nova Turma --}}
 @include('formacao.turmas._createTurmaModal')
@@ -174,7 +179,6 @@
                 const turmaNome = button.getAttribute('data-turma-nome');
                 
                 // Armazena a referência do formulário
-                // Procura o formulário de exclusão dentro da mesma linha (<tr>)
                 formToSubmit = button.closest('tr').querySelector('.delete-form'); 
                 
                 // Atualiza o nome da turma no modal
@@ -194,16 +198,101 @@
                 }
             });
             
-            // 3. Lógica para o Modal de Confirmação de Exclusão em MASSA
-            // O formulário de exclusão em massa (#deleteAllTurmasForm) é enviado diretamente
-            // quando o botão de submit dentro do modal é clicado.
-
+            // 3. Lógica para o Modal de Confirmação de Exclusão em MASSA (se necessário, estaria aqui)
         }
         
         // Se houver um erro de validação (retorno da função storeTurmas), garantir que o modal de criação seja exibido novamente.
         if (document.getElementById('validation-error-flag')) {
             var createModal = new bootstrap.Modal(document.getElementById('createTurmaModal'));
             createModal.show();
+        }
+
+        // ==========================================================
+        // CÓDIGO AJAX QUE CORRIGE O ERRO 404
+        // ==========================================================
+        const viewAlunosModal = document.getElementById('viewAlunosModal');
+        const alunosTableBody = document.getElementById('modalAlunosTableBody');
+        const modalTurmaNome = document.getElementById('modalTurmaNome');
+        const modalProfessorNome = document.getElementById('modalProfessorNome');
+        const modalAlunosCount = document.getElementById('modalAlunosCount');
+        const modalLoading = document.getElementById('modalLoading');
+        const modalError = document.getElementById('modalError');
+        const modalErrorMessage = document.getElementById('modalErrorMessage');
+
+        if (viewAlunosModal) {
+            // Evento disparado antes do modal ser exibido (show.bs.modal)
+            viewAlunosModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Botão que acionou o modal
+                const turmaId = button.getAttribute('data-turma-id');
+
+                // 1. Resetar o modal e mostrar loading
+                alunosTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Carregando alunos...</td></tr>';
+                modalTurmaNome.textContent = '...';
+                modalProfessorNome.textContent = '...';
+                modalAlunosCount.textContent = '0';
+                modalError.classList.add('d-none');
+                modalLoading.classList.remove('d-none');
+                
+                // 2. Requisição AJAX (Chama a rota Laravel)
+                fetch(`{{ url('formacao/turmas') }}/${turmaId}/alunos`)
+                    .then(response => {
+                        modalLoading.classList.add('d-none');
+                        if (!response.ok) {
+                            // Captura e lança o erro, incluindo 404
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            // Preencher cabeçalho
+                            modalTurmaNome.textContent = data.turma_nome;
+                            modalProfessorNome.textContent = data.professor_nome;
+                            modalAlunosCount.textContent = data.alunos_count;
+
+                            // Preencher tabela
+                            let htmlContent = '';
+                            if (data.alunos_count > 0) {
+                                data.alunos.forEach((aluno, index) => {
+                                    const numero = index + 1;
+                                    // Formata Mão Dominante
+                                    const maoDominante = aluno.mao_dominante ? aluno.mao_dominante.charAt(0).toUpperCase() + aluno.mao_dominante.slice(1) : 'N/A';
+                                    
+                                    htmlContent += `
+                                        <tr>
+                                            <td>${numero}</td>
+                                            <td>${aluno.nomeCompleto}</td>
+                                            <td>${aluno.idade || 'N/A'}</td>
+                                            <td>${aluno.celular || 'N/A'}</td>
+                                            <td>${maoDominante}</td>
+                                        </tr>
+                                    `;
+                                });
+                            } else {
+                                htmlContent = `
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Nenhum aluno alocado nesta turma.</td>
+                                    </tr>
+                                `;
+                            }
+                            alunosTableBody.innerHTML = htmlContent;
+
+                        } else {
+                            // Erro retornado pelo controller
+                            modalError.classList.remove('d-none');
+                            modalErrorMessage.textContent = 'Falha ao carregar os dados da turma.';
+                            alunosTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Dados indisponíveis.</td></tr>`;
+                        }
+                    })
+                    .catch(error => {
+                        // Erro de rede ou servidor
+                        modalLoading.classList.add('d-none');
+                        modalError.classList.remove('d-none');
+                        modalErrorMessage.textContent = `Falha na comunicação com o servidor: ${error.message}`;
+                        alunosTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Erro de rede ou servidor.</td></tr>`;
+                        console.error('Erro na requisição AJAX:', error);
+                    });
+            });
         }
     });
 </script>

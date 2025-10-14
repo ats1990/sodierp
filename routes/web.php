@@ -83,7 +83,7 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::get('/usuarios', [UsuarioController::class, 'index'])
         ->middleware('role:coordenacao')
         ->name('usuarios.index');
-        
+
     // Rota para ATIVAR Usuário
     Route::patch('/usuarios/{usuario}/ativar', [UsuarioController::class, 'ativar'])
         ->middleware('role:coordenacao')
@@ -111,7 +111,7 @@ Route::middleware(['auth', 'check.status'])->group(function () {
         ->group(function () {
             Route::get('/turmas', [FormacaoController::class, 'indexTurmas'])->name('turmas.index');
             Route::post('/turmas', [FormacaoController::class, 'storeTurmas'])->name('turmas.store');
-            
+
             // 💡 ROTA CORRIGIDA: Adicionada a definição para 'formacao.turmas.storeBulk'
             Route::post('/turmas/bulk', [FormacaoController::class, 'storeBulk'])->name('turmas.storeBulk');
 
@@ -120,23 +120,26 @@ Route::middleware(['auth', 'check.status'])->group(function () {
 
             // Rota para Excluir uma Turma ÚNICA (com parâmetro dinâmico)
             Route::delete('/turmas/{turma}', [FormacaoController::class, 'destroyTurma'])->name('turmas.destroy');
-            
+
             // 🚨 NOVO: Rota para exibir o formulário/modal de Atribuição Lógica (GET)
             Route::get('/turmas/atribuir/form', [FormacaoController::class, 'showAtribuicaoRapidaLogica'])->name('turmas.atribuicao_logica_form');
-            
+
             // 💡 AJUSTADO: Rota de POST de Atribuição RÁPIDA, agora executando a LÓGICA (em lote)
             Route::post('/turmas/atribuir', [FormacaoController::class, 'atribuirAlunoTurma'])->name('turmas.atribuir');
 
             // ROTAS DE ATRIBUIÇÃO DETALHADA
             // NOVO: Rota para a tela de Atribuição Detalhada (acessada pelo botão)
             Route::get('atribuicao', [FormacaoController::class, 'indexAtribuicaoTurmas'])->name('atribuicao.index');
-            
+
             // 🚨 CORREÇÃO: Rota para Salvar Alterações em Massa (Bulk Update via botão)
             Route::put('atribuicao/salvar', [FormacaoController::class, 'bulkUpdate'])->name('atribuicao.bulkUpdate');
 
             // NOVO: Rota para salvar a atribuição (usada na tela detalhada - via AJAX, mantida por referência)
             Route::post('atribuicao/{aluno}', [FormacaoController::class, 'updateAtribuicaoAluno'])->name('atribuicao.update');
-            
+
+            // Rota para buscar os alunos de uma turma específica via AJAX
+            Route::get('turmas/{turma}/alunos', [FormacaoController::class, 'getAlunosByTurma'])->name('turmas.alunos.ajax');
+          
             // ... (o restante das rotas de formação) ...
             Route::get('notas', [FormacaoController::class, 'indexNotas'])->name('notas.index');
             Route::get('boletim', [FormacaoController::class, 'indexBoletim'])->name('boletim.index');

@@ -40,7 +40,7 @@ class FormacaoController extends Controller
         $turmas = Turma::withCount('alunos')->get(); // <--- Otimizado para contar alunos no DB
         // Busca os alunos, ordenando por nomeCompleto para melhor visualização
         $alunos = $queryAlunos->orderBy('nomeCompleto')->get();
-        
+
         // 5. Define a Árvore de Navegação (Breadcrumb)
         $breadcrumbs = [
             ['name' => 'Formação', 'route' => 'formacao.turmas.index'], // Rota principal de Formação
@@ -247,6 +247,34 @@ class FormacaoController extends Controller
             return redirect()->route('formacao.turmas.index')
                 ->with('error', "Erro ao excluir a turma 'ID: {$turma->id}'. Detalhes: " . $e->getMessage());
         }
+    }
+
+    public function getAlunosByTurma(Turma $turma)
+    {
+        // 1. Carrega os alunos (com campos importantes) e o professor.
+        $turma->load([
+            'alunos' => function ($query) {
+                // Seleciona apenas os campos necessários para a tabela do modal
+                // Os campos são baseados nos seus modelos e na estrutura do modal fornecida
+                $query->select('id', 'turma_id', 'nomeCompleto', 'idade', 'celular', 'mao_dominante')
+                    ->orderBy('nomeCompleto'); // Ordena para melhor visualização
+            },
+            'professor'
+        ]);
+
+        // 2. Coleta os dados para o JSON.
+        // O professor é carregado via relacionamento, mas o modelo User não foi fornecido. 
+        // Assumimos que 'nomeCompleto' existe no modelo User (como no seu index.blade.php)
+        $professorNome = $turma->professor ? $turma->professor->nomeCompleto : 'Não atribuído';
+
+        return response()->json([
+            'success' => true,
+            'turma_id' => $turma->id,
+            'turma_nome' => $turma->nome_completo,
+            'professor_nome' => $professorNome,
+            'alunos_count' => $turma->alunos->count(),
+            'alunos' => $turma->alunos,
+        ]);
     }
 
     // =========================================================================
