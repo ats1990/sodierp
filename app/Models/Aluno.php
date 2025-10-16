@@ -5,8 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo; // Adicionado para tipagem correta
-use App\Models\Turma; // <-- Importado para o relacionamento
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Casts\Attribute; // 💡 Importado para Accessors (Laravel 9+)
+use App\Models\Turma;
 
 class Aluno extends Model
 {
@@ -59,47 +60,47 @@ class Aluno extends Model
         'medicamento',
         'telefone_internet',
         'aluguel_financiamento',
-        'ubs', // Campo novo
-        'convenio', // Campo novo
-        'qual_convenio', // Campo novo
-        'vacinacao', // Campo novo
-        'queixa_saude', // Campo novo
-        'qual_queixa', // Campo novo
-        'alergia', // Campo novo
-        'qual_alergia', // Campo novo
-        'tratamento', // Campo novo
-        'qual_tratamento', // Campo novo
-        'uso_remedio', // Campo novo
-        'qual_remedio', // Campo novo
-        'cirurgia', // Campo novo
-        'motivo_cirurgia', // Campo novo
-        'pcd', // Campo novo
-        'qual_pcd', // Campo novo
-        'necessidade_especial', // Campo novo
-        'doenca_congenita', // Campo novo
-        'qual_doenca_congenita', // Campo novo
-        'psicologo', // Campo novo
-        'quando_psicologo', // Campo novo
-        'convulsao', // Campo novo
-        'quando_convulsao', // Campo novo
-        'familia_doenca', // Campo novo
-        'qual_familia_doenca', // Campo novo
-        'familia_depressao', // Campo novo
-        'quem_familia_depressao', // Campo novo
-        'medico_especialista', // Campo novo
-        'qual_medico_especialista', // Campo novo
-        'familia_psicologico', // Campo novo
-        'quem_familia_psicologico', // Campo novo
-        'familia_alcool', // Campo novo
-        'quem_familia_alcool', // Campo novo
-        'familia_drogas', // Campo novo
-        'quem_familia_drogas', // Campo novo
+        'ubs',
+        'convenio',
+        'qual_convenio',
+        'vacinacao',
+        'queixa_saude',
+        'qual_queixa',
+        'alergia',
+        'qual_alergia',
+        'tratamento',
+        'qual_tratamento',
+        'uso_remedio',
+        'qual_remedio',
+        'cirurgia',
+        'motivo_cirurgia',
+        'pcd',
+        'qual_pcd',
+        'necessidade_especial',
+        'doenca_congenita',
+        'qual_doenca_congenita',
+        'psicologo',
+        'quando_psicologo',
+        'convulsao',
+        'quando_convulsao',
+        'familia_doenca',
+        'qual_familia_doenca',
+        'familia_depressao',
+        'quem_familia_depressao',
+        'medico_especialista',
+        'qual_medico_especialista',
+        'familia_psicologico',
+        'quem_familia_psicologico',
+        'familia_alcool',
+        'quem_familia_alcool',
+        'familia_drogas',
+        'quem_familia_drogas',
         'declaracao_consentimento',
-        'assinatura', // Campo novo
-        'turma_id', // <-- CRUCIAL: Adicionado para permitir atribuir o aluno a uma turma
+        'assinatura',
+        'turma_id',
     ];
 
-    // Campos booleanos do formulário
+    // Campos booleanos do formulário (Mantido para o Mutator)
     protected array $booleanFields = [
         'carteiraTrabalho',
         'jaTrabalhou',
@@ -126,6 +127,38 @@ class Aluno extends Model
         'declaracao_consentimento'
     ];
 
+    // ==========================================================
+    // NOVO ACCESSOR: nome_exibicao
+    // ==========================================================
+
+    /**
+     * Define o Accessor para o campo virtual 'nome_exibicao'.
+     * Exibe 'Nome Completo (Nome Social)' se nomeSocial existir, ou apenas 'Nome Completo'.
+     * @return \Illuminate\Database\Eloquent\Casts\Attribute
+     */
+    protected function nomeExibicao(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value, $attributes) {
+                $nomeCompleto = $attributes['nomeCompleto'];
+                $nomeSocial = $attributes['nomeSocial'];
+
+                // Verifica se 'nomeSocial' existe e não está vazio ou é NULL
+                if (!empty(trim($nomeSocial))) {
+                    // Retorna: Nome Completo (Nome Social)
+                    return $nomeCompleto . ' (' . $nomeSocial . ')';
+                }
+
+                // Se não houver, retorna apenas o nome completo
+                return $nomeCompleto;
+            },
+        );
+    }
+    
+    // ==========================================================
+    // RELACIONAMENTOS
+    // ==========================================================
+
     // Relacionamento com familiares
     public function familiares(): HasMany
     {
@@ -134,15 +167,17 @@ class Aluno extends Model
 
     /**
      * Relação: Um Aluno pertence a uma Turma.
-     * Adicionado o relacionamento de volta.
      */
-    public function turma()
+    public function turma(): BelongsTo
     {
         return $this->belongsTo(Turma::class, 'turma_id');
     }
 
+    // ==========================================================
+    // MUTATOR (Mantido)
+    // ==========================================================
 
-    // Mutator genérico para booleanos
+    // Mutator genérico para booleanos e sanitização de CPF
     protected static function booted()
     {
         static::saving(function ($aluno) {

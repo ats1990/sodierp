@@ -9,6 +9,9 @@ use App\Http\Controllers\AdministracaoController;
 use App\Http\Controllers\ProgramaController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\FormacaoController;
+// Certifique-se de importar o ChamadaController e o Model Presenca
+use App\Http\Controllers\ChamadaController; 
+use App\Models\Presenca; 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
 
@@ -104,7 +107,28 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     // 🔹 Programas (CRUD completo)
     Route::resource('programas', ProgramaController::class);
 
-    // 🚨 ROTAS DO MENU FORMAÇÃO 🚨
+    // 🏆 NOVO GRUPO: ROTAS DE CHAMADA (Agora fora do middleware 'role:coordenacao') 🏆
+    // O 403 será resolvido, pois a PresencaPolicy agora pode checar o acesso para todas as roles.
+    Route::controller(ChamadaController::class)->group(function () {
+        // 1. Rota principal: Seleção de Turma e Mês
+        Route::get('/chamada', 'index')
+            ->name('chamada.index')
+            ->can('access', Presenca::class); 
+
+        // 2. Visualizar/Editar Chamada de uma Turma/Mês
+        Route::get('/chamada/{turma}/{mes_ano}', 'show')
+            ->name('chamada.show')
+            ->can('access', Presenca::class); 
+
+        // 3. Salvar/Atualizar a Chamada
+        Route::post('/chamada/{turma}/{mes_ano}', 'store')
+            ->name('chamada.store')
+            ->can('alter', Presenca::class); 
+    });
+
+
+    // 🚨 ROTAS DO MENU FORMAÇÃO (RESTRITO APENAS À COORDENAÇÃO) 🚨
+    // Este grupo agora SÓ CONTÉM as rotas EXCLUSIVAS da coordenação.
     Route::prefix('formacao')
         ->name('formacao.')
         ->middleware('role:coordenacao')
@@ -112,38 +136,27 @@ Route::middleware(['auth', 'check.status'])->group(function () {
             Route::get('/turmas', [FormacaoController::class, 'indexTurmas'])->name('turmas.index');
             Route::post('/turmas', [FormacaoController::class, 'storeTurmas'])->name('turmas.store');
 
-            // 💡 ROTA CORRIGIDA: Adicionada a definição para 'formacao.turmas.storeBulk'
+            // Rota para storeBulk
             Route::post('/turmas/bulk', [FormacaoController::class, 'storeBulk'])->name('turmas.storeBulk');
 
-            // Rota para Excluir TODAS as Turmas (deve vir antes de 'turmas/{turma}')
+            // Rotas de exclusão
             Route::delete('turmas/excluir-todas', [FormacaoController::class, 'destroyAllTurmas'])->name('turmas.destroyAll');
-
-            // Rota para Excluir uma Turma ÚNICA (com parâmetro dinâmico)
             Route::delete('/turmas/{turma}', [FormacaoController::class, 'destroyTurma'])->name('turmas.destroy');
 
-            // 🚨 NOVO: Rota para exibir o formulário/modal de Atribuição Lógica (GET)
+            // Rotas de Atribuição
             Route::get('/turmas/atribuir/form', [FormacaoController::class, 'showAtribuicaoRapidaLogica'])->name('turmas.atribuicao_logica_form');
-
-            // 💡 AJUSTADO: Rota de POST de Atribuição RÁPIDA, agora executando a LÓGICA (em lote)
             Route::post('/turmas/atribuir', [FormacaoController::class, 'atribuirAlunoTurma'])->name('turmas.atribuir');
-
-            // ROTAS DE ATRIBUIÇÃO DETALHADA
-            // NOVO: Rota para a tela de Atribuição Detalhada (acessada pelo botão)
             Route::get('atribuicao', [FormacaoController::class, 'indexAtribuicaoTurmas'])->name('atribuicao.index');
-
-            // 🚨 CORREÇÃO: Rota para Salvar Alterações em Massa (Bulk Update via botão)
             Route::put('atribuicao/salvar', [FormacaoController::class, 'bulkUpdate'])->name('atribuicao.bulkUpdate');
-
-            // NOVO: Rota para salvar a atribuição (usada na tela detalhada - via AJAX, mantida por referência)
             Route::post('atribuicao/{aluno}', [FormacaoController::class, 'updateAtribuicaoAluno'])->name('atribuicao.update');
-
-            // Rota para buscar os alunos de uma turma específica via AJAX
             Route::get('turmas/{turma}/alunos', [FormacaoController::class, 'getAlunosByTurma'])->name('turmas.alunos.ajax');
-          
-            // ... (o restante das rotas de formação) ...
+
+            // Rotas de Formação
             Route::get('notas', [FormacaoController::class, 'indexNotas'])->name('notas.index');
             Route::get('boletim', [FormacaoController::class, 'indexBoletim'])->name('boletim.index');
             Route::get('certificado', [FormacaoController::class, 'indexCertificado'])->name('certificado.index');
             Route::get('importar-dados', [FormacaoController::class, 'indexImportar'])->name('importar.index');
+            
+            // ❌ ROTAS DE CHAMADA FORAM REMOVIDAS DAQUI
         });
 });

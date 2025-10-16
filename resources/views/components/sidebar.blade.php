@@ -2,7 +2,8 @@
 // FIX para o erro "Cannot redeclare isActiveRoute()":
 // Define a função apenas se ela ainda não existir.
 if (!function_exists('isActiveRoute')) {
-    /*** Verifica se a rota atual corresponde à rota fornecida.
+    /**
+    * Verifica se a rota atual corresponde à rota fornecida.
     * @param string $route O nome da rota.
     * @return string 'active' se a rota for a atual, caso contrário, vazio.
     */
@@ -26,36 +27,44 @@ $menus = [
         ['title' => 'Dashboard', 'route' => 'painel.coordenacao', 'icon' => 'mdi-home'],
         // Gerenciamento de Usuários
         ['title' => 'Usuários', 'route' => 'usuarios.index', 'icon' => 'mdi-account-circle'],
-        
+
         // NOVO: MENU FORMAÇÃO (COM SUBMENUS)
         [
             'title' => 'Formação',
             'id' => 'formacao-menu', // ID para o collapse
             'icon' => 'mdi-school', // Ícone para Formação
+            // Os submenus da Formação foram ajustados para seguir a sua nova estrutura:
             'submenus' => [
                 ['title' => 'Turmas', 'route' => 'formacao.turmas.index'],
+                // ✅ CORRIGIDO: Agora aponta para a rota universal: 'chamada.index'
+                ['title' => 'Chamada', 'route' => 'chamada.index'], 
                 ['title' => 'Notas', 'route' => 'formacao.notas.index'],
                 ['title' => 'Boletim', 'route' => 'formacao.boletim.index'],
                 ['title' => 'Certificado', 'route' => 'formacao.certificado.index'],
                 ['title' => 'Importar Dados', 'route' => 'formacao.importar.index'],
             ]
         ],
-        
-        // ['title' => 'Turmas', 'route' => 'turmas.index', 'icon' => 'mdi-account-multiple'], // Removido
-        // ['title' => 'Professores', 'route' => 'professores.index', 'icon' => 'mdi-school'], // Removido
+
+        // Itens removidos mantidos como referência comentada
     ],
     'professor' => [
         ['title' => 'Dashboard', 'route' => 'painel.professor', 'icon' => 'mdi-home'],
-        // ['title' => 'Minhas Turmas', 'route' => 'professor.turmas', 'icon' => 'mdi-book-open-page-variant'], // Removido
+        // Chamada para o Professor (usa a rota simples)
+        ['title' => 'Chamada', 'route' => 'chamada.index', 'icon' => 'mdi-calendar-check'],
+        // Item removido mantido como referência comentada
     ],
+
+    // Estrutura correta para a role 'administracao' (array plano)
     'administracao' => [
         ['title' => 'Dashboard', 'route' => 'painel.administracao', 'icon' => 'mdi-home'],
-        // ['title' => 'Usuários', 'route' => 'usuarios.index', 'icon' => 'mdi-account-circle'], // Removido
-        // ['title' => 'Configurações', 'route' => 'configuracoes.index', 'icon' => 'mdi-settings'], // Removido
+        ['title' => 'Chamada', 'route' => 'chamada.index', 'icon' => 'mdi-calendar-check'], // Chamada para Administração
+        // Itens removidos mantidos como referência comentada
     ],
+
+    // 'psicologo' é uma chave de nível superior
     'psicologo' => [
         ['title' => 'Dashboard', 'route' => 'painel.psicologo', 'icon' => 'mdi-home'],
-        // ['title' => 'Agenda', 'route' => 'agenda.index', 'icon' => 'mdi-calendar'], // Removido
+        // Item removido mantido como referência comentada
     ],
 ];
 @endphp
@@ -82,17 +91,17 @@ $menus = [
                 {{-- Verifica se algum submenu está ativo para manter o menu pai expandido --}}
                 @php
                     $isAnySubmenuActive = collect($menu['submenus'])->contains(function($submenu) {
-                        return request()->routeIs($submenu['route'] . '*');
+                        // Verifica se o submenu tem rota e se a rota está ativa
+                        return isset($submenu['route']) && request()->routeIs($submenu['route'] . '*');
                     });
                 @endphp
-                
+
                 <li class="nav-item {{ $isAnySubmenuActive ? 'active' : '' }}">
-                    <a class="nav-link" 
-                       data-bs-toggle="collapse" 
-                       href="#{{ $menu['id'] }}" 
-                       aria-expanded="{{ $isAnySubmenuActive ? 'true' : 'false' }}" 
-                       aria-controls="{{ $menu['id'] }}"
-                    >
+                    <a class="nav-link"
+                        data-bs-toggle="collapse"
+                        href="#{{ $menu['id'] }}"
+                        aria-expanded="{{ $isAnySubmenuActive ? 'true' : 'false' }}"
+                        aria-controls="{{ $menu['id'] }}">
                         <span class="menu-title">{{ $menu['title'] }}</span>
                         <i class="menu-arrow"></i>
                         <i class="mdi {{ $menu['icon'] }} menu-icon"></i>
@@ -100,9 +109,14 @@ $menus = [
                     <div class="collapse {{ $isAnySubmenuActive ? 'show' : '' }}" id="{{ $menu['id'] }}">
                         <ul class="nav flex-column sub-menu">
                             @foreach($menu['submenus'] as $submenu)
-                            <li class="nav-item">
-                                <a class="nav-link {{ isActiveRoute($submenu['route']) }}" href="{{ route($submenu['route']) }}">{{ $submenu['title'] }}</a>
-                            </li>
+                                <li class="nav-item">
+                                    {{-- Certifica-se de que a rota existe antes de tentar gerar o link --}}
+                                    @if (isset($submenu['route']))
+                                        <a class="nav-link {{ isActiveRoute($submenu['route']) }}" href="{{ route($submenu['route']) }}">{{ $submenu['title'] }}</a>
+                                    @else
+                                        <a class="nav-link disabled">{{ $submenu['title'] }}</a>
+                                    @endif
+                                </li>
                             @endforeach
                         </ul>
                     </div>
@@ -110,10 +124,18 @@ $menus = [
             {{-- Lógica para itens simples --}}
             @else
                 <li class="nav-item">
-                    <a class="nav-link {{ isActiveRoute($menu['route']) }}" href="{{ route($menu['route']) }}">
-                        <span class="menu-title">{{ $menu['title'] }}</span>
-                        <i class="mdi {{ $menu['icon'] }} menu-icon"></i>
-                    </a>
+                    {{-- Verifica se a rota existe para evitar erro de `route()` --}}
+                    @if (isset($menu['route']) && Route::has($menu['route']))
+                        <a class="nav-link {{ isActiveRoute($menu['route']) }}" href="{{ route($menu['route']) }}">
+                            <span class="menu-title">{{ $menu['title'] }}</span>
+                            <i class="mdi {{ $menu['icon'] }} menu-icon"></i>
+                        </a>
+                    @else
+                        <a class="nav-link disabled">
+                            <span class="menu-title">{{ $menu['title'] }} (Rota não definida)</span>
+                            <i class="mdi {{ $menu['icon'] }} menu-icon"></i>
+                        </a>
+                    @endif
                 </li>
             @endif
         @endforeach
