@@ -8,6 +8,7 @@ use App\Models\Presenca;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Barryvdh\DomPDF\Facade\Pdf; // 🏆 IMPORTAÇÃO NECESSÁRIA
 
 class ChamadaController extends Controller
 {
@@ -201,5 +202,148 @@ class ChamadaController extends Controller
             'updated_at' => $presenca->updated_at->format('d/m/Y H:i:s'), // Formato mais completo para exibição
             'professor' => $presenca->professor->nomeCompleto ?? 'Atual',
         ]);
+    }
+
+    /**
+     * Retorna os dados necessários (Turmas e Meses) para popular o formulário de geração de PDF (via AJAX).
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function showPdfForm(Request $request)
+    {
+        // 1. Pega todas as turmas
+        $turmas = Turma::select('id', 'letra')->orderBy('letra')->get();
+        
+        // 2. Gera a lista de meses (Pega os últimos 12 meses como padrão)
+        $meses = [];
+        $data_referencia = now()->startOfMonth();
+        
+        for ($i = 0; $i < 12; $i++) { 
+            $date = $data_referencia->copy()->subMonths($i);
+            $meses[] = [
+                'valor' => $date->format('Y-m'), 
+                'nome' => $date->isoFormat('MMMM [de] YYYY') // Ex: Outubro de 2025
+            ];
+        }
+        
+        // Inverte a ordem para que o mês mais antigo venha primeiro
+        $meses = array_reverse($meses); 
+
+        return response()->json([
+            'turmas' => $turmas,
+            'meses' => $meses,
+        ]);
+    }
+
+    /**
+     * Gera o PDF das chamadas de frequência.
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\Response
+     */
+    public function generatePdf(Request $request)
+    {
+        // 1. Validar a Requisição
+        $request->validate([
+            'turma_ids' => 'nullable|array', 
+            'mes_anos' => 'nullable|array',
+            'mes_anos.*' => 'nullable|string|date_format:Y-m',
+        ]);
+
+        // Filtra para remover valores vazios ('') que representam 'Todas as Turmas' e 'Todos os Meses'
+        $turmaIds = array_filter($request->input('turma_ids', []));
+        $mesAnos = array_filter($request->input('mes_anos', []));
+        
+        // Se a seleção de mês for vazia, usa o mês atual como padrão.
+        if (empty($mesAnos)) {
+             $mesAnos = [now()->format('Y-m')];
+        }
+
+        // Ordena os meses para o PDF sair em ordem cronológica
+        sort($mesAnos); 
+
+        $turmasData = [];
+
+        // 2. Loop sobre Meses e Turmas para buscar dados
+        foreach ($mesAnos as $mesAno) {
+            
+            // Tenta criar a data de referência, pula se for inválido
+            try {
+                $dataReferencia = Carbon::createFromFormat('Y-m', $mesAno)->startOfMonth();
+            } catch (\Exception $e) {
+                continue; 
+            }
+            
+            $diasNoMes = $dataReferencia->daysInMonth;
+            $ano = $dataReferencia->year;
+            $mes = $dataReferencia->month;
+
+            // Filtra as turmas se IDs específicos foram passados, ou pega todas
+            $turmas = Turma::when(!empty($turmaIds), function ($query) use ($turmaIds) {
+                $query->whereIn('id', $turmaIds);
+            })
+            // Carrega alunos e, para cada aluno, carrega as presenças do mês/ano
+            ->with(['alunos.presencas' => function ($query) use ($ano, $mes) {
+                $query->whereYear('data', $ano)->whereMonth('data', $mes);
+            }])
+            ->orderBy('letra') 
+            ->get();
+
+
+            foreach ($turmas as $turma) {
+                $frequencias = [];
+                // Ordena alunos por nome completo dentro da turma
+                foreach ($turma->alunos->sortBy('nomeCompleto') as $aluno) {
+                    $presencasMap = $aluno->presencas->keyBy(function($presenca) {
+                        return (int) Carbon::parse($presenca->data)->day;
+                    });
+
+                    // CÁLCULO DAS FALTAS E PRESENÇAS: Usa a lógica exata do seu método show()
+                    $total_presencas = 0;
+                    $total_faltas = 0;
+                    
+                    for ($dia = 1; $dia <= $diasNoMes; $dia++) {
+                        $data_dia = Carbon::createFromDate($ano, $mes, $dia);
+                        $is_dia_letivo = !in_array($data_dia->dayOfWeek, [0, 6]);
+                        
+                        if ($is_dia_letivo) {
+                            $registro = $presencasMap->get($dia); 
+
+                            if ($registro) {
+                                if ($registro->presente == 1) {
+                                    $total_presencas++;
+                                } else {
+                                    $total_faltas++;
+                                }
+                            }
+                        }
+                    }
+
+                    $frequencias[] = [
+                        'aluno_nome' => $aluno->nomeCompleto,
+                        'presencas_map' => $presencasMap,
+                        'total_presencas' => $total_presencas,
+                        'total_faltas' => $total_faltas,
+                    ];
+                }
+
+                $turmasData[] = [
+                    'turma_letra' => $turma->letra,
+                    'mes_ano_formatado' => $dataReferencia->isoFormat('MMMM [de] YYYY'),
+                    'dias_no_mes' => $diasNoMes,
+                    'data_referencia' => $dataReferencia,
+                    'frequencias' => $frequencias,
+                ];
+            }
+        }
+
+        // 3. Gerar o PDF
+        $pdf = Pdf::loadView('formacao.chamada.pdf_template', [
+            'turmasData' => $turmasData,
+        ]);
+        
+        // Define o tamanho da página para A4 paisagem (melhor para a tabela de 31 dias)
+        $pdf->setPaper('a4', 'landscape');
+
+        return $pdf->download('chamadas_frequencia_' . now()->format('YmdHis') . '.pdf');
     }
 }

@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Casts\Attribute; // 💡 Importado para Accessors (Laravel 9+)
 use App\Models\Turma;
+use App\Models\Familiar; 
+// 🚨 CORREÇÃO 1: Importação do Model Presenca para o relacionamento
+use App\Models\Presenca; 
 
 class Aluno extends Model
 {
@@ -171,6 +174,16 @@ class Aluno extends Model
     public function turma(): BelongsTo
     {
         return $this->belongsTo(Turma::class, 'turma_id');
+    }
+
+    /**
+     * Relação: Um Aluno tem muitas Presenças.
+     * CORREÇÃO DO ERRO: Adicionado o método 'presencas'.
+     */
+    public function presencas(): HasMany
+    {
+        // Assume que a foreign key na tabela 'presencas' é 'aluno_id'
+        return $this->hasMany(Presenca::class, 'aluno_id');
     }
 
     // ==========================================================

@@ -9,9 +9,8 @@ use App\Http\Controllers\AdministracaoController;
 use App\Http\Controllers\ProgramaController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\FormacaoController;
-// Certifique-se de importar o ChamadaController e o Model Presenca
-use App\Http\Controllers\ChamadaController; 
-use App\Models\Presenca; 
+use App\Http\Controllers\ChamadaController;
+use App\Models\Presenca;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
 
@@ -107,28 +106,39 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     // 🔹 Programas (CRUD completo)
     Route::resource('programas', ProgramaController::class);
 
-    // 🏆 NOVO GRUPO: ROTAS DE CHAMADA (Agora fora do middleware 'role:coordenacao') 🏆
-    // O 403 será resolvido, pois a PresencaPolicy agora pode checar o acesso para todas as roles.
+    // 🏆 GRUPO: ROTAS DE CHAMADA
     Route::controller(ChamadaController::class)->group(function () {
-        // 1. Rota principal: Seleção de Turma e Mês
+        
+        // **CORREÇÃO:** Rotas estáticas (PDF) ANTES das rotas dinâmicas com parâmetros.
+
+        // 🏆 Rota para buscar dados do formulário de PDF (via AJAX) - ESTÁTICA
+        Route::get('/chamada/pdf/form', 'showPdfForm')
+            ->name('chamada.pdf.form')
+            ->can('access', Presenca::class);
+
+        // 🏆 Rota para gerar o PDF (POST) - ESTÁTICA
+        Route::post('/chamada/pdf/generate', 'generatePdf')
+            ->name('chamada.pdf.generate')
+            ->can('access', Presenca::class);
+            
+        // 1. Rota principal: Seleção de Turma e Mês - ESTÁTICA
         Route::get('/chamada', 'index')
             ->name('chamada.index')
-            ->can('access', Presenca::class); 
+            ->can('access', Presenca::class);
 
-        // 2. Visualizar/Editar Chamada de uma Turma/Mês
+        // 2. Visualizar/Editar Chamada de uma Turma/Mês - DINÂMICA
         Route::get('/chamada/{turma}/{mes_ano}', 'show')
             ->name('chamada.show')
-            ->can('access', Presenca::class); 
+            ->can('access', Presenca::class);
 
         // 3. Salvar/Atualizar a Chamada
         Route::post('/chamada/{turma}/{mes_ano}', 'store')
             ->name('chamada.store')
-            ->can('alter', Presenca::class); 
-    });
-
+            ->can('alter', Presenca::class);
+            
+    }); // <--- FIM CORRETO DO BLOCO CHAMADA
 
     // 🚨 ROTAS DO MENU FORMAÇÃO (RESTRITO APENAS À COORDENAÇÃO) 🚨
-    // Este grupo agora SÓ CONTÉM as rotas EXCLUSIVAS da coordenação.
     Route::prefix('formacao')
         ->name('formacao.')
         ->middleware('role:coordenacao')
@@ -156,7 +166,5 @@ Route::middleware(['auth', 'check.status'])->group(function () {
             Route::get('boletim', [FormacaoController::class, 'indexBoletim'])->name('boletim.index');
             Route::get('certificado', [FormacaoController::class, 'indexCertificado'])->name('certificado.index');
             Route::get('importar-dados', [FormacaoController::class, 'indexImportar'])->name('importar.index');
-            
-            // ❌ ROTAS DE CHAMADA FORAM REMOVIDAS DAQUI
         });
 });
