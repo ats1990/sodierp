@@ -1,9 +1,3 @@
-Sim, claro!
-
-Aqui está o conteúdo do seu arquivo README.md completo e formatado, pronto para ser copiado e colado:
-
-Markdown
-
 # 🏢 SODIPROM ERP
 
 Sistema ERP interno da **ONG SODIPROM**, desenvolvido em **Laravel 10** com a pilha **TALL** (**T**ailwind, **A**lpine, **L**aravel, **L**ivewire) e **Laravel Breeze** (usando **Blade** como motor de *templates*).
