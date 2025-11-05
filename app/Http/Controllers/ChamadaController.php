@@ -8,7 +8,9 @@ use App\Models\Presenca;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use Barryvdh\DomPDF\Facade\Pdf; // 🏆 IMPORTAÇÃO NECESSÁRIA
+use Barryvdh\DomPDF\Facade\Pdf; // Para gerar o PDF
+use ZipArchive; // Para criar o arquivo ZIP
+use Illuminate\Support\Facades\File; // Útil, mas ZipArchive nativo já é suficiente
 
 class ChamadaController extends Controller
 {
@@ -138,8 +140,7 @@ class ChamadaController extends Controller
                 }
             }
             
-            // ATUALIZAÇÃO AQUI: Remove o cálculo da média e usa a contagem simples
-            // O nome da propriedade é alterado de media_presencas para total_presencas
+            // Atribui as contagens ao objeto Aluno para uso na View
             $aluno->total_presencas = $total_presencas; 
             $aluno->total_faltas = $total_faltas;
         }
@@ -236,12 +237,16 @@ class ChamadaController extends Controller
     }
 
     /**
-     * Gera o PDF das chamadas de frequência.
+     * Gera o PDF das chamadas de frequência, compactando múltiplos meses em um ZIP.
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
     public function generatePdf(Request $request)
     {
+        // 🏆 CORREÇÃO: AUMENTAR LIMITES PARA EVITAR TIMEOUT/MEMÓRIA
+        set_time_limit(300); // 5 minutos (ajuste conforme necessário)
+        ini_set('memory_limit', '512M'); // 512MB (ajuste conforme necessário)
+        
         // 1. Validar a Requisição
         $request->validate([
             'turma_ids' => 'nullable|array', 
@@ -249,24 +254,31 @@ class ChamadaController extends Controller
             'mes_anos.*' => 'nullable|string|date_format:Y-m',
         ]);
 
-        // Filtra para remover valores vazios ('') que representam 'Todas as Turmas' e 'Todos os Meses'
         $turmaIds = array_filter($request->input('turma_ids', []));
         $mesAnos = array_filter($request->input('mes_anos', []));
         
-        // Se a seleção de mês for vazia, usa o mês atual como padrão.
         if (empty($mesAnos)) {
              $mesAnos = [now()->format('Y-m')];
         }
-
-        // Ordena os meses para o PDF sair em ordem cronológica
         sort($mesAnos); 
 
-        $turmasData = [];
+        // ==========================================================
+        // INÍCIO DA GERAÇÃO DO ZIP com ZipArchive
+        // ==========================================================
+        $zipFileName = 'frequencias_' . now()->format('YmdHis') . '.zip';
+        // Pega o diretório temporário do sistema operacional
+        $zipPath = sys_get_temp_dir() . '/' . $zipFileName;
+        
+        $zip = new ZipArchive;
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
+            return back()->with('error', 'Não foi possível iniciar a criação do arquivo ZIP.');
+        }
 
-        // 2. Loop sobre Meses e Turmas para buscar dados
+        $relatoriosGerados = 0; // Contador de PDFs gerados com sucesso
+
+        // 2. Loop principal sobre MESES
         foreach ($mesAnos as $mesAno) {
             
-            // Tenta criar a data de referência, pula se for inválido
             try {
                 $dataReferencia = Carbon::createFromFormat('Y-m', $mesAno)->startOfMonth();
             } catch (\Exception $e) {
@@ -288,16 +300,17 @@ class ChamadaController extends Controller
             ->orderBy('letra') 
             ->get();
 
+            $turmasDataParaMes = [];
 
+            // 3. Loop interno sobre TURMAS (Cálculo de Frequência)
             foreach ($turmas as $turma) {
                 $frequencias = [];
-                // Ordena alunos por nome completo dentro da turma
+
                 foreach ($turma->alunos->sortBy('nomeCompleto') as $aluno) {
                     $presencasMap = $aluno->presencas->keyBy(function($presenca) {
                         return (int) Carbon::parse($presenca->data)->day;
                     });
 
-                    // CÁLCULO DAS FALTAS E PRESENÇAS: Usa a lógica exata do seu método show()
                     $total_presencas = 0;
                     $total_faltas = 0;
                     
@@ -326,7 +339,8 @@ class ChamadaController extends Controller
                     ];
                 }
 
-                $turmasData[] = [
+                // Acumula os dados de todas as turmas para o MÊS atual
+                $turmasDataParaMes[] = [
                     'turma_letra' => $turma->letra,
                     'mes_ano_formatado' => $dataReferencia->isoFormat('MMMM [de] YYYY'),
                     'dias_no_mes' => $diasNoMes,
@@ -334,16 +348,40 @@ class ChamadaController extends Controller
                     'frequencias' => $frequencias,
                 ];
             }
+            
+            // 4. GERAÇÃO E ADIÇÃO DO PDF AO ZIP (UM PDF POR MÊS/Conjunto de Turmas)
+            // 🏆 MUDANÇA: Verifica se turmas existem (isNotEmpty), garantindo relatório vazio se necessário
+            if ($turmas->isNotEmpty()) { 
+                
+                // Define o nome do arquivo, incluindo a letra da turma se for uma única selecionada
+                $turmaPrefix = count($turmaIds) === 1 ? 'Turma_' . $turmas->first()->letra . '_' : '';
+                $pdfName = $turmaPrefix . $dataReferencia->isoFormat('MMMM_YYYY') . '.pdf';
+                
+                // Cria o PDF APENAS para os dados deste mês
+                $pdf = Pdf::loadView('formacao.chamada.pdf_template', [
+                    'turmasData' => $turmasDataParaMes, 
+                ]);
+                $pdf->setPaper('a4', 'landscape');
+                
+                // Salva o conteúdo na memória e adiciona ao ZIP
+                $zip->addFromString($pdfName, $pdf->output());
+                $relatoriosGerados++; // Incrementa o contador de sucesso
+                
+                // Limpar a variável do DomPDF ajuda a liberar memória para o próximo loop
+                unset($pdf); 
+            }
+        } // Fim do loop de MESES
+
+        // 5. Finaliza e fecha o arquivo ZIP
+        $zip->close();
+        
+        // 6. Retorna o arquivo ZIP para download
+        if ($relatoriosGerados > 0 && file_exists($zipPath)) {
+             // download() com deleteFileAfterSend(true) remove o arquivo temporário após o download
+            return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
         }
 
-        // 3. Gerar o PDF
-        $pdf = Pdf::loadView('formacao.chamada.pdf_template', [
-            'turmasData' => $turmasData,
-        ]);
-        
-        // Define o tamanho da página para A4 paisagem (melhor para a tabela de 31 dias)
-        $pdf->setPaper('a4', 'landscape');
-
-        return $pdf->download('chamadas_frequencia_' . now()->format('YmdHis') . '.pdf');
+        // Se $relatoriosGerados for 0, as turmas/meses selecionados não existem ou não houve dados válidos para processar.
+        return back()->with('error', 'Nenhum relatório foi gerado. Verifique se as turmas existem no período selecionado.');
     }
 }
