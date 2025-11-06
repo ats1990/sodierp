@@ -23,10 +23,12 @@ class AlunoController extends Controller
      */
     public function index()
     {
-        // 1. Busca os alunos, ordenados por nome completo
-        $alunos = Aluno::orderBy('nomeCompleto')->paginate(20); 
+        // 1. Busca os alunos, ordenados por ID (TESTE)
+        // MUDANÇA AQUI: Altere 'nomeCompleto' para 'id' (ou 'created_at')
+        $alunos = Aluno::orderBy('id', 'desc')->paginate(20); 
         
         // 2. Retorna a view de listagem
+        // Certifique-se de que o nome da view está correto: 'alunos.index'
         return view('alunos.index', compact('alunos'));
     }
 

@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Casts\Attribute; // 💡 Importado para Accessors (Laravel 9+)
+use Illuminate\Database\Eloquent\Casts\Attribute; 
+// 🚨 CORREÇÃO ESSENCIAL: Adicionada importação da classe Carbon
+use Carbon\Carbon; 
 use App\Models\Turma;
 use App\Models\Familiar; 
-// 🚨 CORREÇÃO 1: Importação do Model Presenca para o relacionamento
 use App\Models\Presenca; 
 
 class Aluno extends Model
@@ -49,7 +50,7 @@ class Aluno extends Model
         'moradia',
         'moradia_porquem',
         'beneficio',
-        'bolsa_familia',
+        'bolsa_familia', 
         'bpc_loas',
         'pensao',
         'aux_emergencial',
@@ -60,7 +61,7 @@ class Aluno extends Model
         'qtd_membros_familia',
         'turma_id',
         'observacoes',
-        'user_id', // 💡 CORREÇÃO CRÍTICA: Adicionado user_id para Mass Assignment
+        'user_id', 
     ];
     
     // Campos que devem ser tratados como booleanos no mutator (mesmo que venham como string)
@@ -69,16 +70,15 @@ class Aluno extends Model
         'ctpsAssinada',
         'concluido',
         'beneficio',
-        'bolsa_familia', // Se for um campo booleano que indica se recebe ou não
+        'bolsa_familia', 
         'bpc_loas',
         'pensao',
         'aux_emergencial',
-        // Adicionar outros campos booleanos conforme necessário
     ];
 
 
     // ==========================================================
-    // RELACIONAMENTOS (Mantido)
+    // RELACIONAMENTOS 
     // ==========================================================
 
     // Relacionamento com familiares
@@ -97,16 +97,14 @@ class Aluno extends Model
 
     /**
      * Relação: Um Aluno tem muitas Presenças.
-     * CORREÇÃO DO ERRO: Adicionado o método 'presencas'.
      */
     public function presencas(): HasMany
     {
-        // Assume que a foreign key na tabela 'presencas' é 'aluno_id'
         return $this->hasMany(Presenca::class, 'aluno_id');
     }
 
     // ==========================================================
-    // MUTATOR (Mantido)
+    // MUTATOR
     // ==========================================================
 
     // Mutator genérico para booleanos e sanitização de CPF
@@ -115,7 +113,6 @@ class Aluno extends Model
         static::saving(function ($aluno) {
             foreach ($aluno->booleanFields as $field) {
                 if (isset($aluno->$field)) {
-                    // Garante que 'sim'/'on' se tornem true (1 no banco) e outros se tornem false (0)
                     $aluno->$field = in_array($aluno->$field, ['sim', 'on', true, 1], true) ? 1 : 0;
                 }
             }
@@ -132,7 +129,7 @@ class Aluno extends Model
     }
     
     // ==========================================================
-    // ACCESSORS (Mantido)
+    // ACCESSORS 
     // ==========================================================
 
     /**
@@ -147,4 +144,4 @@ class Aluno extends Model
                 : null,
         );
     }
-}   
+}

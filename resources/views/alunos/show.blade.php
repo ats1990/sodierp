@@ -1,11 +1,13 @@
 {{-- Arquivo: resources/views/alunos/show.blade.php --}}
 
-@extends('layouts.app') 
+@extends('layouts.app')
 
 @section('content')
 @php
-    // Helper para converter a data de nascimento para o formato brasileiro
-    $dataNascFormatada = $aluno->dataNascimento ? Carbon\Carbon::parse($aluno->dataNascimento)->format('d/m/Y') : 'N/D';
+// Helper para converter a data de nascimento para o formato brasileiro
+$dataNascFormatada = $aluno->dataNascimento
+? \Carbon\Carbon::parse($aluno->dataNascimento)->format('d/m/Y')
+: 'N/D';
 @endphp
 
 <div class="container-fluid">
@@ -23,10 +25,15 @@
         <div class="col-md-3">
             <div class="card mb-3 shadow">
                 <div class="card-body text-center">
-                    {{--  --}}
+                    {{--  --}}
                     <h5 class="mt-2">{{ $aluno->nomeCompleto }}</h5>
-                    <p class="text-muted">Turma: **{{ $aluno->turma->getNomeCompletoAttribute() ?? 'N/D' }}**</p>
-                    <p class="text-muted">Professor: {{ $aluno->turma->professor->name ?? 'N/D' }}</p>
+
+                    {{-- CORREÇÃO 1: Adicionado '?->' --}}
+                    <p class="text-muted">Turma: **{{ $aluno->turma?->getNomeCompletoAttribute() ?? 'N/D' }}**</p>
+
+                    {{-- CORREÇÃO 2: Adicionado '?->' --}}
+                    <p class="text-muted">Professor: {{ $aluno->turma?->professor?->name ?? 'N/D' }}</p>
+
                     <hr>
 
                     <h6 class="card-title text-start">Dados Pessoais</h6>
@@ -50,7 +57,7 @@
 
         {{-- COLUNA PRINCIPAL (Pedagógico e Social) --}}
         <div class="col-md-9">
-            
+
             {{-- INFORMAÇÕES PEDAGÓGICAS (Laranja conforme imagem) --}}
             <div class="card mb-3 bg-warning text-white shadow">
                 <div class="card-body">
@@ -79,7 +86,7 @@
                     <div class="card shadow">
                         <div class="card-body">
                             <p class="text-center text-muted">GRÁFICO DE DESEMPENHO - (Integração com Chart.js/etc.)</p>
-                                                    </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -91,13 +98,13 @@
                         <div class="card-body">
                             <strong>OBSERVAÇÕES DA EQUIPE PEDAGÓGICA:</strong>
                             <p>{{ $aluno->observacoes ?? 'Nenhuma observação registrada.' }}</p>
-                            
+
                             <h5 class="mt-4">Familiares (Renda Total: R$ {{ number_format($aluno->familiares->sum('salarioBase'), 2, ',', '.') }})</h5>
                             <ul class="list-unstyled small">
                                 @forelse ($aluno->familiares as $familiar)
-                                    <li>- {{ $familiar->nomeCompleto }} ({{ $familiar->parentesco }}). Salário: R$ {{ number_format($familiar->salarioBase, 2, ',', '.') }}</li>
+                                <li>- {{ $familiar->nomeCompleto }} ({{ $familiar->parentesco }}). Salário: R$ {{ number_format($familiar->salarioBase, 2, ',', '.') }}</li>
                                 @empty
-                                    <li>Nenhum familiar cadastrado.</li>
+                                <li>Nenhum familiar cadastrado.</li>
                                 @endforelse
                             </ul>
                             <a href="{{ route('aluno.edit', $aluno) }}#familiares" class="btn btn-sm btn-info mt-2">Gerenciar Familiares</a>
@@ -109,15 +116,16 @@
                         <div class="card-body">
                             <strong>SUGESTÕES DE ÁREAS DE ATUAÇÃO:</strong>
                             <p>#N/D (Baseado em notas e observações)</p>
-                            
+
                             <h5 class="mt-4">Ocorrências</h5>
                             <div class="text-center display-4 mb-0">0</div> {{-- Placeholder --}}
                         </div>
                     </div>
                 </div>
             </div>
-            
+
         </div>
+        {{-- FIM COLUNA PRINCIPAL --}}
     </div>
 </div>
 
