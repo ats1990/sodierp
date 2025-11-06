@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Aluno;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AlunoController;
 use App\Http\Controllers\ProfessorController;
@@ -26,7 +27,6 @@ use Illuminate\Support\Facades\Route;
 
 // 🔹 Tela inicial (GET)
 Route::get('/', [AuthenticatedSessionController::class, 'create'])->name('login');
-
 // 🔹 Login (POST)
 Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
 
@@ -71,6 +71,36 @@ Route::middleware(['auth', 'check.status'])->group(function () {
         ->middleware('role:psicologo')
         ->name('painel.psicologo');
 
+    // 🔹 ROTAS DE GERENCIAMENTO DE FAMILIARES (ANINHADAS AO ALUNO)
+    Route::post('/alunos/{aluno}/familiares', [FamiliarController::class, 'store'])->name('familiar.store');
+    Route::delete('/familiares/{familiar}', [FamiliarController::class, 'destroy'])->name('familiar.destroy');
+
+    // ==========================================================
+    // 💡 BLOCO DE ROTAS DO ALUNO CORRIGIDO (ORDEM CRÍTICA)
+    // ==========================================================
+
+    // 1. ROTAS ESTÁTICAS ESPECÍFICAS (DEVE VIR PRIMEIRO PARA EVITAR 404)
+    Route::get('/alunos/importar', [AlunoController::class, 'showImportForm'])
+        ->middleware('role:coordenacao')
+        ->name('aluno.import.form');
+    Route::post('/alunos/importar', [AlunoController::class, 'import'])
+        ->middleware('role:coordenacao')
+        ->name('aluno.import.store');
+
+    // 2. ROTAS ESPECÍFICAS COM PARÂMETRO
+    Route::get('/alunos/{aluno}/editar', [AlunoController::class, 'edit'])->name('aluno.edit');
+
+    // 3. ROTAS DE AÇÃO (PUT/DELETE)
+    Route::put('/alunos/{aluno}', [AlunoController::class, 'update'])->name('aluno.update');
+    // Se tiver a rota destroy, ela deve vir aqui:
+    // Route::delete('/alunos/{aluno}', [AlunoController::class, 'destroy'])->name('aluno.destroy');
+
+    // 4. ROTA DE VISUALIZAÇÃO GENÉRICA (DEVE SER A ÚLTIMA COM {aluno})
+    Route::get('/alunos/{aluno}', [AlunoController::class, 'show'])->name('aluno.show');
+
+    // 5. ROTA DE LISTAGEM
+    Route::get('/alunos', [AlunoController::class, 'index'])->name('aluno.index');
+
 
     // 🔹 Perfil do usuário
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -78,8 +108,10 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
 
+    // ... (restante das rotas, mantendo a estrutura original para o restante) ...
+
     // 🔹 Listagem e Gerenciamento (CRUDs internos)
-    Route::get('/alunos', [AlunoController::class, 'index'])->name('aluno.index');
+    // Rota duplicada removida: Route::get('/alunos', [AlunoController::class, 'index'])->name('aluno.index');
 
     // ... (rotas de gerenciamento de usuários) ...
     Route::get('/usuarios', [UsuarioController::class, 'index'])
@@ -108,7 +140,7 @@ Route::middleware(['auth', 'check.status'])->group(function () {
 
     // 🏆 GRUPO: ROTAS DE CHAMADA
     Route::controller(ChamadaController::class)->group(function () {
-        
+
         // **CORREÇÃO:** Rotas estáticas (PDF) ANTES das rotas dinâmicas com parâmetros.
 
         // 🏆 Rota para buscar dados do formulário de PDF (via AJAX) - ESTÁTICA
@@ -120,7 +152,7 @@ Route::middleware(['auth', 'check.status'])->group(function () {
         Route::post('/chamada/pdf/generate', 'generatePdf')
             ->name('chamada.pdf.generate')
             ->can('access', Presenca::class);
-            
+
         // 1. Rota principal: Seleção de Turma e Mês - ESTÁTICA
         Route::get('/chamada', 'index')
             ->name('chamada.index')
@@ -135,7 +167,6 @@ Route::middleware(['auth', 'check.status'])->group(function () {
         Route::post('/chamada/{turma}/{mes_ano}', 'store')
             ->name('chamada.store')
             ->can('alter', Presenca::class);
-            
     }); // <--- FIM CORRETO DO BLOCO CHAMADA
 
     // 🚨 ROTAS DO MENU FORMAÇÃO (RESTRITO APENAS À COORDENAÇÃO) 🚨
@@ -167,4 +198,4 @@ Route::middleware(['auth', 'check.status'])->group(function () {
             Route::get('certificado', [FormacaoController::class, 'indexCertificado'])->name('certificado.index');
             Route::get('importar-dados', [FormacaoController::class, 'indexImportar'])->name('importar.index');
         });
-});
+}); 
