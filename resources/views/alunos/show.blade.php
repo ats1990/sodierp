@@ -2,55 +2,235 @@
 
 @extends('layouts.app')
 
+{{-- ADICIONANDO CSS PERSONALIZADO (LARANJA MARCA E CORREÇÃO DE PAGINAÇÃO) DIRETAMENTE NA PÁGINA --}}
+@section('styles')
+<style>
+    /* Cor Principal da Marca/Flamingo */
+    .color-brand {
+        color: #f47034 !important; /* Cor dos números (8,0, 7,6, Faltas) */
+    }
+
+    /* Cor Laranja Flamingo para background */
+    .bg-flamingo {
+        background-color: #f47034 !important; /* Código HEX da Cor de Marca */
+    }
+
+    /* Definindo o estilo do botão Flamingo e garantindo que o texto dele seja branco */
+    .btn-flamingo {
+        background-color: #f47034 !important;
+        border-color: #f47034 !important;
+        color: white !important;
+    }
+    
+    /* Garantindo que os Cards fiquem brancos com sombra */
+    .card {
+        background-color: white;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    }
+
+    /* * CORREÇÃO DA PAGINAÇÃO QUEBRADA E TAMANHO DA SETA 
+     * (Incluído aqui, mas deve ser movido para o arquivo de listagem de alunos - index.blade.php)
+     */
+    .pagination {
+        display: flex; 
+        padding-left: 0;
+        list-style: none;
+        border-radius: 0.25rem;
+        justify-content: center; 
+    }
+    
+    .page-item {
+        margin: 0 2px; 
+    }
+    
+    .page-link {
+        display: block;
+        padding: 0.5rem 0.75rem;
+        line-height: 1.25;
+        color: #6c757d; 
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        text-decoration: none;
+        /* Força um tamanho de fonte padrão menor no link, o que deve reduzir o tamanho das setas */
+        font-size: 1rem; 
+    }
+    
+    .page-item.active .page-link {
+        z-index: 1;
+        color: #fff;
+        background-color: #f47034; 
+        border-color: #f47034;
+    }
+    
+    .page-link:hover {
+        color: #f47034; 
+    }
+</style>
+@endsection
+{{-- FIM DO CSS INTEGRADO --}}
+
+
 @section('content')
 @php
-// Helper para converter a data de nascimento para o formato brasileiro
+use Carbon\Carbon;
+
+// 1. Helper para converter a data de nascimento para o formato brasileiro
 $dataNascFormatada = $aluno->dataNascimento
-? \Carbon\Carbon::parse($aluno->dataNascimento)->format('d/m/Y')
-: 'N/D';
+    ? Carbon::parse($aluno->dataNascimento)->format('d/m/Y')
+    : 'N/D';
+
+// 2. Cálculo da idade completa em anos e meses 
+$dataNascimento = $aluno->dataNascimento ? Carbon::parse($aluno->dataNascimento) : null;
+$idadeCompleta = $dataNascimento ? $dataNascimento->diff(Carbon::now()) : null;
+$idadeAnosMeses = $idadeCompleta ? "{$idadeCompleta->y} anos e {$idadeCompleta->m} meses" : 'N/D';
+
+// 3. Variáveis de Acesso Seguro e/ou Placeholder 
+$turmaNome = $aluno->turma?->getNomeCompletoAttribute() ?? 'N/D';
+$professorNome = $aluno->turma?->professor?->name ?? 'N/D';
+
+// Os dados de responsável e contrato 
+$celularResponsavel = $aluno->responsavel?->celular ?? '(11) 9 XXXX-XXXX';
+$nomeResponsavel = $aluno->responsavel?->nomeCompleto ?? 'N/D';
+$telefoneRecado = $aluno->responsavel?->telefoneRecado ?? 'N/D';
+$empresaContrato = $aluno->empresaContrato?->nomeFantasia ?? 'Nenhuma'; 
+
+// 4. LÓGICA DO NOME: Exibe Nome Civil, ou Nome Civil (Nome Social)
+$nomeExibicao = $aluno->nomeCompleto; 
+if (!empty($aluno->nome_social)) {
+    $nomeExibicao = "{$aluno->nomeCompleto} ({$aluno->nome_social})";
+}
+
 @endphp
 
 <div class="container-fluid">
-    {{-- Título e Botões de Ação (topo) --}}
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Perfil do Aluno: {{ $aluno->nomeCompleto }}</h1>
+    
+    {{-- Título da Tela e Botões de Ação (topo) --}}
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h1>Perfil do Aluno: {{ $nomeExibicao }}</h1>
+        {{-- BOTÃO EDITAR com a cor Flamingo e texto branco --}}
         <div class="btn-group">
-            <a href="{{ route('aluno.edit', $aluno) }}" class="btn btn-warning"><i class="fas fa-edit"></i> Editar Dados</a>
+            <a href="{{ route('aluno.edit', $aluno) }}" class="btn btn-flamingo"><i class="fas fa-edit"></i> Editar Dados</a>
             <button class="btn btn-success"><i class="fas fa-external-link-alt"></i> Encaminhar</button>
         </div>
     </div>
+    
+    {{-- LINHA DE CONTATOS E RESPONSÁVEIS (Blocos Laranja Flamingo) --}}
+    <div class="row mb-4">
+        {{-- Título da Formação (Bloco Escuro) --}}
+        <div class="col-12 bg-dark text-white p-2">
+            <h5 class="m-0">Formação Básica - 2º Sem/2024</h5>
+        </div>
 
+        {{-- Cabeçalho de Contato Flamingo (ADICIONADO text-white) --}}
+        <div class="col-md-2 p-0">
+            <div class="bg-flamingo text-white p-2 h-100 d-flex flex-column justify-content-center text-center">
+                <small class="text-uppercase font-weight-bold">Celular</small>
+                <strong class="h6 m-0">{{ $aluno->celular ?? 'N/D' }}</strong>
+            </div>
+        </div>
+        <div class="col-md-3 p-0">
+            <div class="bg-flamingo text-white p-2 h-100 d-flex flex-column justify-content-center text-center">
+                <small class="text-uppercase font-weight-bold">E-mail</small>
+                <strong class="h6 m-0">{{ $aluno->email ?? 'N/D' }}</strong>
+            </div>
+        </div>
+        <div class="col-md-3 p-0">
+            <div class="bg-flamingo text-white p-2 h-100 d-flex flex-column justify-content-center text-center">
+                <small class="text-uppercase font-weight-bold">Celular do Responsável</small>
+                <strong class="h6 m-0">{{ $celularResponsavel }}</strong>
+            </div>
+        </div>
+        <div class="col-md-2 p-0">
+            <div class="bg-flamingo text-white p-2 h-100 d-flex flex-column justify-content-center text-center">
+                <small class="text-uppercase font-weight-bold">Nome do Responsável</small>
+                <strong class="h6 m-0">{{ $nomeResponsavel }}</strong>
+            </div>
+        </div>
+        <div class="col-md-2 p-0">
+            <div class="bg-flamingo text-white p-2 h-100 d-flex flex-column justify-content-center text-center">
+                <small class="text-uppercase font-weight-bold">Tel. Recado</small>
+                <strong class="h6 m-0">{{ $telefoneRecado }}</strong>
+            </div>
+        </div>
+    </div>
+    {{-- FIM LINHA DE CONTATOS --}}
+    
     <div class="row">
         {{-- COLUNA LATERAL ESQUERDA (Informações Básicas e Status) --}}
         <div class="col-md-3">
+            {{-- Card Principal Lateral --}}
             <div class="card mb-3 shadow">
-                <div class="card-body text-center">
-                    {{--  --}}
-                    <h5 class="mt-2">{{ $aluno->nomeCompleto }}</h5>
+                <div class="card-body p-0">
+                    {{-- Bloco Superior (Foto e Nome) --}}
+                    <div class="p-3 text-center">
+                        {{-- Placeholder para Foto do Aluno --}}
+                        <div class="d-flex justify-content-center mb-2">
+                            <div style="
+                                width: 100px; 
+                                height: 100px; 
+                                border-radius: 50%; 
+                                background-color: #e0e0e0; 
+                                display: flex; 
+                                align-items: center; 
+                                justify-content: center; 
+                                color: #999; 
+                                font-size: 0.8rem; 
+                                border: 2px solid #ccc;
+                            ">
+                                Foto N/D
+                            </div>
+                        </div>
+                        
+                        <h5 class="mt-2 mb-0">{{ $nomeExibicao }}</h5>
+                        <p class="text-muted small mb-1">Turma: **{{ $turmaNome }}**</p>
+                        <p class="text-muted small">Professor: {{ $professorNome }}</p>
+                    </div>
+                    
+                    {{-- Bloco Encaminhar (Flamingo) --}}
+                    <div class="bg-flamingo text-white text-center py-2 mb-3">
+                        <strong class="h6 m-0 text-uppercase">Encaminhar</strong>
+                    </div>
 
-                    {{-- CORREÇÃO 1: Adicionado '?->' --}}
-                    <p class="text-muted">Turma: **{{ $aluno->turma?->getNomeCompletoAttribute() ?? 'N/D' }}**</p>
+                    {{-- INFORMAÇÕES PESSOAIS E CAMPOS ADICIONADOS --}}
+                    <div class="px-3">
+                        <h6 class="card-title text-start font-weight-bold">Dados Pessoais</h6>
+                        <ul class="list-unstyled text-start small">
+                            <li><strong>Data Nasc:</strong> {{ $dataNascFormatada }}</li>
+                            <li><strong>Idade:</strong> {{ $idadeAnosMeses }}</li> 
+                            <li><strong>Dominância:</strong> {{ $aluno->mao_dominante ?? 'N/D' }}</li> 
+                            <li><strong>CPF:</strong> {{ $aluno->cpf ?? 'N/D' }}</li>
+                            <li><strong>RG:</strong> {{ $aluno->rg ?? 'N/D' }}</li>
+                            <li><strong>Bairro:</strong> {{ $aluno->bairro ?? 'N/D' }}</li> 
+                        </ul>
+                        
+                        <hr>
+                    </div>
 
-                    {{-- CORREÇÃO 2: Adicionado '?->' --}}
-                    <p class="text-muted">Professor: {{ $aluno->turma?->professor?->name ?? 'N/D' }}</p>
+                    {{-- Bloco Contrato (Flamingo) --}}
+                    <div class="bg-flamingo text-white text-center py-2 mb-3">
+                        <strong class="h6 m-0 text-uppercase">Contrato com</strong>
+                    </div>
 
-                    <hr>
+                    {{-- Status Contrato --}}
+                    <div class="px-3">
+                        <p class="mb-3 small font-weight-bold text-center">{{ $empresaContrato }}</p>
+                    </div>
 
-                    <h6 class="card-title text-start">Dados Pessoais</h6>
-                    <ul class="list-unstyled text-start small">
-                        <li><strong>Data Nasc:</strong> {{ $dataNascFormatada }}</li>
-                        <li><strong>Idade:</strong> {{ $aluno->idade }} anos</li>
-                        <li><strong>CPF:</strong> {{ $aluno->cpf ?? 'N/D' }}</li>
-                        <li><strong>RG:</strong> {{ $aluno->rg ?? 'N/D' }}</li>
-                        <li><strong>E-mail:</strong> {{ $aluno->email ?? 'N/D' }}</li>
-                        <li><strong>Celular:</strong> {{ $aluno->celular ?? 'N/D' }}</li>
-                    </ul>
+                    {{-- Bloco Empresas Encaminhadas (Escuro) --}}
+                    <div class="bg-dark text-white text-center py-2 mb-3">
+                        <strong class="h6 m-0 text-uppercase">Empresas que já foi encaminhado</strong>
+                    </div>
 
-                    <h6 class="card-title text-start mt-3">Status de Encaminhamento</h6>
-                    <ul class="list-unstyled text-start small">
-                        <li><strong>Em Processo:</strong> {{ $aluno->jaTrabalhou ? 'Sim' : 'Não' }}</li>
-                        <li><strong>CTPS Assinada:</strong> {{ $aluno->ctpsAssinada ? 'Sim' : 'Não' }}</li>
-                    </ul>
+                    {{-- Empresas (CORRIGIDO) --}}
+                    <div class="px-3 pb-3">
+                        <p class="mb-0 small text-center">
+                            @if ($aluno->encaminhamentos && $aluno->encaminhamentos->isNotEmpty())
+                                {{ $aluno->encaminhamentos->pluck('empresa.nomeFantasia')->join(', ') }}
+                            @else
+                                Nenhuma
+                            @endif
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -58,70 +238,74 @@ $dataNascFormatada = $aluno->dataNascimento
         {{-- COLUNA PRINCIPAL (Pedagógico e Social) --}}
         <div class="col-md-9">
 
-            {{-- INFORMAÇÕES PEDAGÓGICAS (Laranja conforme imagem) --}}
-            <div class="card mb-3 bg-warning text-white shadow">
-                <div class="card-body">
-                    <h4 class="text-center">INFORMAÇÕES PEDAGÓGICAS</h4>
+            {{-- TÍTULO: INFORMAÇÕES PEDAGÓGICAS (Flamingo) --}}
+            <div class="card mb-3 bg-flamingo text-white shadow">
+                <div class="card-body py-2">
+                    <h5 class="text-center m-0 text-uppercase">Informações Pedagógicas</h5>
                 </div>
             </div>
 
             <div class="row">
-                <div class="col-md-4">
-                    {{-- MÉDIAS GERAIS (Exemplo da imagem) --}}
-                    <div class="card text-center h-100 shadow">
-                        <div class="card-body">
-                            <p class="mb-0 text-muted">MÉDIA FINAL</p>
-                            <h2 class="text-primary display-4">8,0</h2>
-                            <p>DISCIPLINA</p>
-                            <h2 class="text-secondary display-4">7,3</h2>
-                            <p>COMPORTAMENTO</p>
-                            <hr>
-                            <p>Faltas Registradas: **{{ $aluno->presencas->where('status', 'falta')->count() }}**</p>
-                        </div>
+                <div class="col-md-3">
+                    {{-- MÉDIAS GERAIS (Números com a cor da marca) --}}
+                    <div class="card text-center h-100 shadow p-3">
+                        <p class="mb-0 text-muted small">Disciplina e Média</p>
+                        <h6 class="mb-0 font-weight-bold">MÉDIA FINAL</h6>
+                        {{-- APLICANDO NOVO CSS color-brand --}}
+                        <h1 class="color-brand display-4 mb-0">8,0</h1> 
+                        <hr>
+                        <h6 class="mb-0 font-weight-bold">COMPORTAMENTO</h1>
+                        {{-- APLICANDO NOVO CSS color-brand --}}
+                        <h1 class="color-brand display-4 mb-0">7,6</h1>
+                        <p class="mt-2">Faltas Registradas: 
+                            {{-- APLICANDO NOVO CSS color-brand --}}
+                            <strong class="color-brand">
+                                {{ optional($aluno->presencas)->where('status', 'falta')->count() ?? 0 }}
+                            </strong>
+                        </p>
                     </div>
                 </div>
 
-                <div class="col-md-8">
+                <div class="col-md-9">
                     {{-- GRÁFICO (Placeholder) --}}
-                    <div class="card shadow">
-                        <div class="card-body">
-                            <p class="text-center text-muted">GRÁFICO DE DESEMPENHO - (Integração com Chart.js/etc.)</p>
+                    <div class="card shadow h-100">
+                        <div class="card-body d-flex align-items-center justify-content-center">
+                            <p class="text-center text-muted">GRÁFICO DE DESEMPENHO AQUI</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {{-- OBSERVAÇÕES E FAMILIARES --}}
+            {{-- OBSERVAÇÕES, SUGESTÕES E CURSOS --}}
             <div class="row mt-3">
-                <div class="col-md-6">
-                    <div class="card h-100 shadow">
-                        <div class="card-body">
-                            <strong>OBSERVAÇÕES DA EQUIPE PEDAGÓGICA:</strong>
-                            <p>{{ $aluno->observacoes ?? 'Nenhuma observação registrada.' }}</p>
-
-                            <h5 class="mt-4">Familiares (Renda Total: R$ {{ number_format($aluno->familiares->sum('salarioBase'), 2, ',', '.') }})</h5>
-                            <ul class="list-unstyled small">
-                                @forelse ($aluno->familiares as $familiar)
-                                <li>- {{ $familiar->nomeCompleto }} ({{ $familiar->parentesco }}). Salário: R$ {{ number_format($familiar->salarioBase, 2, ',', '.') }}</li>
-                                @empty
-                                <li>Nenhum familiar cadastrado.</li>
-                                @endforelse
-                            </ul>
-                            <a href="{{ route('aluno.edit', $aluno) }}#familiares" class="btn btn-sm btn-info mt-2">Gerenciar Familiares</a>
-                        </div>
+                <div class="col-md-12">
+                    <div class="card shadow p-3 mb-3">
+                        <strong class="text-uppercase">OBSERVAÇÕES DA EQUIPE PEDAGÓGICA:</strong>
+                        <p class="mt-2">{{ $aluno->observacoes ?? 'Nenhuma observação registrada.' }}</p>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="card h-100 shadow">
-                        <div class="card-body">
-                            <strong>SUGESTÕES DE ÁREAS DE ATUAÇÃO:</strong>
-                            <p>#N/D (Baseado em notas e observações)</p>
-
-                            <h5 class="mt-4">Ocorrências</h5>
-                            <div class="text-center display-4 mb-0">0</div> {{-- Placeholder --}}
-                        </div>
+                
+                <div class="col-md-12">
+                    <div class="card shadow p-3 mb-3">
+                        <strong class="text-uppercase">SUGESTÕES DE ÁREAS DE ATUAÇÃO:</strong>
+                        <p class="mt-2">#N/D (Baseado em notas e observações)</p>
                     </div>
                 </div>
+                
+                <div class="col-md-12">
+                    <div class="card shadow p-3 mb-3">
+                        <strong class="text-uppercase">CURSOS LIVRES:</strong>
+                        {{-- CORRIGIDO --}}
+                        <p class="mt-2">
+                            @if ($aluno->cursosLivres && $aluno->cursosLivres->isNotEmpty())
+                                {{ $aluno->cursosLivres->pluck('nome')->join(', ') }}
+                            @else
+                                Nenhum
+                            @endif
+                        </p>
+                    </div>
+                </div>
+                {{-- O BLOCO FAMILIARES FOI REMOVIDO --}}
             </div>
 
         </div>

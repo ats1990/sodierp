@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use App\Models\Turma; 
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log; // Adicionado para debug
 
 class AlunoController extends Controller
 {
@@ -19,376 +20,395 @@ class AlunoController extends Controller
     // ==========================================================
     
     /**
-     * Exibe a listagem de alunos com paginação.
+     * Exibe a listagem de alunos com paginação, filtragem e ordenação.
+     * MÉTODO INDEX ATUALIZADO para usar filtros de Ano e Semestre.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // 1. Busca os alunos, ordenados por ID (TESTE)
-        // MUDANÇA AQUI: Altere 'nomeCompleto' para 'id' (ou 'created_at')
-        $alunos = Aluno::orderBy('id', 'desc')->paginate(20); 
+        $query = Aluno::query();
+
+        // 1. FILTRAGEM POR ANO, PERÍODO OU TURMA
         
-        // 2. Retorna a view de listagem
-        // Certifique-se de que o nome da view está correto: 'alunos.index'
-        return view('alunos.index', compact('alunos'));
+        $turmaId = $request->input('turma_id');
+        $anoLetivo = $request->input('ano_letivo');
+        $periodo = $request->input('periodo');
+
+        // Se a turma_id específica for selecionada, ela tem prioridade.
+        if ($turmaId) {
+            $query->where('turma_id', $turmaId);
+        } 
+        // Caso contrário, filtra pelo ano letivo E/OU período, usando whereHas na relação 'turma'.
+        elseif ($anoLetivo || $periodo) {
+            $query->whereHas('turma', function ($q) use ($anoLetivo, $periodo) {
+                if ($anoLetivo) {
+                    $q->where('ano_letivo', $anoLetivo);
+                }
+                if ($periodo) {
+                    // O valor de $periodo será '1' ou '2' (Semestre)
+                    $q->where('periodo', $periodo);
+                }
+            });
+        }
+        
+        // 2. ORDENAÇÃO
+        // Pega os parâmetros da requisição ou usa padrões
+        $sortColumn = $request->get('sort', 'id'); 
+        $sortDirection = $request->get('direction', 'desc');
+
+        // Colunas permitidas para ordenação (segurança)
+        $allowedColumns = ['id', 'nomeCompleto', 'cpf', 'turma_id'];
+        if (!in_array($sortColumn, $allowedColumns)) {
+            $sortColumn = 'id';
+        }
+        
+        // Aplica a ordenação
+        if ($sortColumn === 'turma_id') {
+            // Ordena pela Turma (o que geralmente significa ordenar por ano/letra da turma)
+            $query->with(['turma' => function ($q) use ($sortDirection) {
+                $q->orderBy('ano_letivo', $sortDirection)->orderBy('letra', $sortDirection);
+            }])
+            ->orderBy('turma_id', $sortDirection); 
+        } else {
+             // Se estiver ordenando por 'nomeCompleto' ou 'cpf', usa a ordenação direta
+            $query->orderBy($sortColumn, $sortDirection);
+        }
+
+        // 3. PAGINAÇÃO E RESULTADOS
+        $alunos = $query->paginate(20)->withQueryString();
+
+        // 4. VARIÁVEIS DE FILTRO PARA A VIEW
+        
+        // Turmas (para o filtro Turma Específica)
+        $turmas = Turma::orderBy('ano_letivo', 'desc')->orderBy('letra', 'asc')->get();
+        
+        // Anos Letivos (valores distintos existentes no banco)
+        $anosLetivos = Turma::select('ano_letivo')
+            ->distinct()
+            ->orderBy('ano_letivo', 'desc')
+            ->pluck('ano_letivo');
+
+        // Períodos (APENAS Semestres '1' e '2') - Valores do DB
+        $periodos = ['1', '2']; 
+
+        return view('alunos.index', compact('alunos', 'turmas', 'anosLetivos', 'periodos'));
+    }
+
+    /**
+     * Exibe o formulário de cadastro de um novo aluno (aluno.create).
+     */
+    public function create()
+    {
+        // Necessário para o dropdown de Turmas
+        $turmas = Turma::orderBy('ano_letivo', 'desc')->orderBy('letra', 'asc')->get();
+        // Necessário para o dropdown de Familiares (Opcional se for linkar aluno a familiar existente)
+        $familiares = Familiar::orderBy('nomeCompleto', 'asc')->get(); 
+
+        return view('alunos.create', compact('turmas', 'familiares'));
+    }
+
+    /**
+     * Armazena um novo aluno no banco de dados.
+     */
+    public function store(Request $request)
+    {
+        $validatedData = $request->validate([
+            'turma_id' => 'required|exists:turmas,id',
+            'nomeCompleto' => 'required|string|max:255',
+            'cpf' => 'nullable|string|max:14|unique:alunos,cpf',
+            'rg' => 'nullable|string|max:20',
+            'dataNascimento' => 'nullable|date',
+            'telefone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255|unique:alunos,email',
+            // Adicionar campos necessários do seu formulário
+            'cep' => 'nullable|string|max:10',
+            'endereco' => 'nullable|string|max:255',
+            'bairro' => 'nullable|string|max:100',
+            'cidade' => 'nullable|string|max:100',
+            'uf' => 'nullable|string|max:2',
+            'bolsa_familia' => 'nullable|string|max:10', // Exemplo
+        ]);
+
+        // 1. Encontra os dados da turma para gerar o código do aluno
+        $turma = Turma::findOrFail($validatedData['turma_id']);
+        
+        // 2. Conta quantos alunos já existem nesta turma para determinar o sequencial
+        $sequencial = $turma->alunos()->count() + 1;
+        $sequencialFormatado = str_pad($sequencial, 3, '0', STR_PAD_LEFT);
+
+        // 3. Gera o codigoAluno no formato AAAA-S-T-XXX
+        $codigoAluno = "{$turma->ano_letivo}-{$turma->periodo}-{$turma->letra}-{$sequencialFormatado}";
+
+        $validatedData['codigoAluno'] = $codigoAluno;
+        $validatedData['user_id'] = auth()->id() ?? 1; // ID do usuário que criou o registro
+
+        // Cria o aluno
+        $aluno = Aluno::create($validatedData);
+
+        return redirect()->route('aluno.index')->with('success', "Aluno {$aluno->nomeCompleto} cadastrado com sucesso na Turma {$turma->getNomeCompletoAttribute()}.");
     }
 
     /**
      * Exibe o perfil detalhado de um aluno, carregando todos os seus dados relacionados.
      * Implementa o 'aluno.show'
-     * @param \App\Models\Aluno $aluno
-     * @return \Illuminate\View\View
      */
     public function show(Aluno $aluno)
     {
         // Carrega os relacionamentos necessários para a view de dashboard/perfil
         $aluno->load([
-            'turma.professor', // Turma e o Professor relacionado
-            'familiares',      // Todos os Familiares
-            'presencas'        // Dados de frequência/presença (relacionamento definido em Aluno.php)
+            'turma', 
+            'familiares', 
+            'user' 
         ]);
-        
+
         return view('alunos.show', compact('aluno'));
     }
-
+    
     /**
-     * Exibe o formulário para editar um aluno.
-     * Implementa o 'aluno.edit'
-     * @param \App\Models\Aluno $aluno
-     * @return \Illuminate\View\View
+     * Exibe o formulário para edição do aluno.
      */
     public function edit(Aluno $aluno)
     {
-        // Carrega todas as turmas disponíveis para o campo de seleção
-        $turmas = Turma::all()->mapWithKeys(function ($turma) {
-            // Usa o Accessor nomeCompleto do Model Turma
-            return [$turma->id => $turma->nomeCompleto]; 
-        });
-        
-        // Carrega familiares para serem listados na tela de edição
-        $aluno->load('familiares');
+        $turmas = Turma::orderBy('ano_letivo', 'desc')->orderBy('letra', 'asc')->get();
+        $familiares = Familiar::orderBy('nomeCompleto', 'asc')->get(); 
 
-        return view('alunos.edit', compact('aluno', 'turmas'));
+        return view('alunos.edit', compact('aluno', 'turmas', 'familiares'));
     }
 
     /**
-     * Atualiza os dados de um aluno no banco de dados.
-     * Implementa o 'aluno.update'
-     * @param \Illuminate\Http\Request $request
-     * @param \App\Models\Aluno $aluno
-     * @return \Illuminate\Http\RedirectResponse
+     * Atualiza o aluno no banco de dados.
      */
     public function update(Request $request, Aluno $aluno)
     {
-        // 1. Definição das Regras de Validação para a Edição (incluindo unique do CPF)
-        $rules = [
-            'nomeCompleto' => 'required|string|max:191',
-            // O CPF deve ser único, exceto para o aluno que está sendo editado (ignore)
+        $validatedData = $request->validate([
+            'turma_id' => 'required|exists:turmas,id',
+            'nomeCompleto' => 'required|string|max:255',
+            // O CPF e E-mail devem ser únicos, exceto para o aluno atual
             'cpf' => 'nullable|string|max:14|unique:alunos,cpf,' . $aluno->id, 
-            'dataNascimento' => 'required|date_format:d/m/Y', // Espera o formato DD/MM/AAAA da view
-            'email' => 'nullable|email|max:191', 
-            'celular' => 'nullable|string|max:20',
-            'turma_id' => 'nullable|exists:turmas,id',
-            'observacoes' => 'nullable|string', 
-            // Os campos booleanos devem ter validação de tipo adequada ao que a view envia.
-            'jaTrabalhou' => 'nullable|boolean', // O Mutator no Model Aluno trata de strings p/ boolean
-            'ctpsAssinada' => 'nullable|boolean',
-            'bolsa_familia' => 'nullable|numeric|min:0',
-        ];
+            'email' => 'nullable|email|max:255|unique:alunos,email,' . $aluno->id,
+            'rg' => 'nullable|string|max:20',
+            'dataNascimento' => 'nullable|date',
+            'telefone' => 'nullable|string|max:20',
+            // Adicionar campos necessários do seu formulário
+            'cep' => 'nullable|string|max:10',
+            'endereco' => 'nullable|string|max:255',
+            'bairro' => 'nullable|string|max:100',
+            'cidade' => 'nullable|string|max:100',
+            'uf' => 'nullable|string|max:2',
+            'bolsa_familia' => 'nullable|string|max:10', 
+            // O codigoAluno não deve ser alterado manualmente aqui
+        ]);
         
-        // 2. Valida os dados da requisição
-        $validatedData = $request->validate($rules);
-        
-        // 3. Conversão da Data (dd/mm/aaaa para Y-m-d)
-        if (isset($validatedData['dataNascimento'])) {
-             try {
-                // Tenta criar a data no formato d/m/Y e formatar para Y-m-d (MySQL)
-                $validatedData['dataNascimento'] = Carbon::createFromFormat('d/m/Y', $validatedData['dataNascimento'])->format('Y-m-d');
-             } catch (\Exception $e) {
-                 throw ValidationException::withMessages(['dataNascimento' => 'A data de nascimento fornecida é inválida.']);
-             }
-        }
-        
-        // 4. Atualiza o Aluno (O Mutator no Model Aluno se encarrega de sanitizar CPF/RG/Booleanos)
         $aluno->update($validatedData);
 
-        return redirect()->route('aluno.show', $aluno)
-            ->with('success', 'Dados do aluno atualizados com sucesso!');
+        return redirect()->route('aluno.index')->with('success', "Aluno {$aluno->nomeCompleto} atualizado com sucesso.");
+    }
+    
+    /**
+     * Remove o aluno do banco de dados.
+     */
+    public function destroy(Aluno $aluno)
+    {
+        try {
+            $aluno->delete();
+            return redirect()->route('aluno.index')->with('success', 'Aluno excluído com sucesso.');
+        } catch (\Exception $e) {
+            return redirect()->route('aluno.index')->with('error', 'Erro ao excluir o aluno: ' . $e->getMessage());
+        }
     }
 
 
     // ==========================================================
-    // MÉTODOS DE IMPORTAÇÃO CSV (Corrigidos para Upsert)
+    // MÉTODOS RELACIONADOS À IMPORTAÇÃO
     // ==========================================================
 
+    /**
+     * Exibe o formulário de importação (Upload CSV)
+     * MÉTODO CORRIGIDO: showImportForm
+     */
     public function showImportForm()
     {
         return view('alunos.import');
     }
 
     /**
-     * Processa o upload do CSV e importa os dados.
+     * Processa o arquivo CSV e salva os dados dos alunos.
      */
     public function import(Request $request)
     {
-        // 1. Validação do arquivo
         $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt|max:10240',
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240', // 10MB
         ]);
 
         $file = $request->file('csv_file');
+        $filePath = $file->getRealPath();
+        $errors = [];
+        $successCount = 0;
         
-        if (($handle = fopen($file->getRealPath(), 'r')) !== FALSE) {
-            
-            // Tenta ler os cabeçalhos usando o delimitador ';'
-            $header = fgetcsv($handle, 1000, ';');
-            
-            // Certifica-se de que os cabeçalhos estão em caixa alta e sem espaços extras
-            $normalizedHeader = array_map(fn($h) => trim(Str::upper($h)), $header);
-            
-            $importedCount = 0;
-            $rowCounter = 1; // 💡 CORREÇÃO: Contador para rastrear a linha atual no CSV
-            $errorRows = [];
+        // Define as regras de validação para os campos do aluno
+        $validationRules = [
+            'nomeCompleto' => 'required|string|max:255',
+            'cpf' => 'nullable|string|max:14', 
+            'rg' => 'nullable|string|max:20',
+            'dataNascimento' => 'nullable|date_format:Y-m-d', // Já formatada
+            'email' => 'nullable|email|max:255', 
+        ];
 
+        if (($handle = fopen($filePath, 'r')) !== FALSE) {
+            // Lê o cabeçalho (primeira linha)
+            $header = fgetcsv($handle, 1000, ',');
+            
+            // Mapeamento dos cabeçalhos do CSV para os campos do DB
+            $columnMap = [
+                'CODIGO ALUNO' => 'codigoAluno',
+                'NOME ALUNO' => 'nomeCompleto',
+                'CPF' => 'cpf',
+                'RG' => 'rg',
+                'DATA DE NASCIMENTO' => 'dataNascimento',
+                'TELEFONE' => 'telefone',
+                'EMAIL' => 'email',
+                'SEXO' => 'sexo',
+                'CEP' => 'cep',
+                'ENDERECO' => 'endereco',
+                'BAIRRO' => 'bairro',
+                'CIDADE' => 'cidade',
+                'UF' => 'uf',
+                'BOLSA FAMILIA' => 'bolsa_familia',
+                // Adicione outros campos da sua planilha aqui
+            ];
+
+            $mappedHeader = [];
+            foreach ($header as $colIndex => $colName) {
+                $standardizedName = Str::upper(str_replace(' ', '_', trim($colName)));
+                if (isset($columnMap[$standardizedName])) {
+                    $mappedHeader[$colIndex] = $columnMap[$standardizedName];
+                }
+            }
+
+            $line = 1; 
             DB::beginTransaction();
-
+            
             try {
-                // Loop por cada linha do CSV
-                while (($row = fgetcsv($handle, 1000, ';')) !== FALSE) {
-                    $rowCounter++; // Linha de dados (começa em 2)
+                while (($row = fgetcsv($handle, 1000, ',')) !== FALSE) {
+                    $line++;
                     
-                    if (count($normalizedHeader) !== count($row)) {
-                        $errorRows[] = "Linha " . $rowCounter . ": Contagem de colunas inválida. Cabeçalhos: " . count($normalizedHeader) . ", Dados: " . count($row) . ".";
-                        continue;
-                    }
-                    
-                    // Combina os cabeçalhos normalizados com os dados da linha
-                    $data = array_combine($normalizedHeader, $row);
-                    
-                    // 1. Extração e Mapeamento dos dados do Aluno
-                    $alunoData = $this->extractAlunoData($data);
-
-                    // 2. Validação dos Dados Mapeados
-                    // 💡 CORREÇÃO: As regras não têm mais a checagem 'unique' para permitir o Upsert.
-                    $validator = Validator::make($alunoData, $this->getAlunoValidationRules());
-                    
-                    if ($validator->fails()) {
-                        $errorRows[] = "Linha " . $rowCounter . ": " . implode('; ', $validator->errors()->all());
-                        continue; 
-                    }
-                    
-                    // Se o CPF estiver vazio ou for null, pula a linha, pois não temos chave de busca
-                    if (empty($alunoData['cpf'])) {
-                        $errorRows[] = "Linha " . $rowCounter . ": O CPF é obrigatório para importação/atualização.";
-                        continue;
-                    }
-
-
-                    // 3. Criação/Atualização do Aluno (Upsert)
-                    // 💡 CORREÇÃO CRÍTICA: Usa updateOrCreate para evitar erros de CPF duplicado.
-                    $aluno = Aluno::updateOrCreate(
-                        ['cpf' => $alunoData['cpf']], // Chave de busca (CPF)
-                        $alunoData                       // Dados a serem atualizados/inseridos
-                    );
-                    
-                    // 4. Criação dos Familiares
-                    $familiaresData = $this->extractFamiliaresData($data);
-                    foreach ($familiaresData as $familiarData) {
-                        if (!empty($familiarData['nomeCompleto']) && $aluno) {
-                             // A lógica de criação de familiares deve ser adicionada aqui se o CSV tiver dados de familiares
-                             // $aluno->familiares()->create($familiarData);
+                    $rowData = [];
+                    foreach ($row as $colIndex => $value) {
+                        if (isset($mappedHeader[$colIndex])) {
+                            $rowData[$mappedHeader[$colIndex]] = $value;
                         }
                     }
 
-                    $importedCount++;
+                    $result = $this->handleCsvRow($rowData, $validationRules, $line);
+                    
+                    if ($result['status'] === 'success') {
+                        $successCount++;
+                    } else {
+                        $errors = array_merge($errors, $result['errors']);
+                    }
                 }
-
-                DB::commit();
+                
                 fclose($handle);
                 
-                $message = "Importação concluída! {$importedCount} alunos foram importados/atualizados.";
-                if (!empty($errorRows)) {
-                    $message .= " Atenção: Houve erros em " . count($errorRows) . " linhas. Veja os detalhes abaixo.";
+                if (empty($errors)) {
+                    DB::commit();
+                    return redirect()->route('aluno.index')->with('success', "Importação concluída: {$successCount} alunos processados com sucesso.");
+                } else {
+                    DB::rollBack();
+                    // Retorna com erros
+                    return redirect()->route('aluno.index')->with('error', 'Importação concluída, mas com erros.')->with('import_errors', $errors);
                 }
-
-                return redirect()->route('aluno.index')
-                    ->with('success', $message)
-                    ->with('import_errors', $errorRows); // Passa a lista de erros para a view
 
             } catch (\Exception $e) {
                 DB::rollBack();
-                fclose($handle);
-                
-                \Log::error('Erro na importação de CSV: ' . $e->getMessage());
-
-                return redirect()->back()
-                    ->with('error', "Erro fatal na linha: " . $rowCounter . " - " . $e->getMessage() . ". Nenhuma alteração foi salva.")
-                    ->withInput();
-            }
-        }
-
-        return redirect()->back()->with('error', 'Não foi possível ler o arquivo CSV.');
-    }
-    
-    // ==========================================================
-    // REGRAS DE VALIDAÇÃO (Para a Importação)
-    // ==========================================================
-
-    /**
-     * Retorna o array de regras de validação para o cadastro de aluno (usado na Importação).
-     */
-    private function getAlunoValidationRules(): array
-    {
-        return [
-            // Requerido no DB
-            'nomeCompleto' => 'required|string|max:191',
-            'dataNascimento' => 'required|date_format:Y-m-d', // Assumindo o formato pós-conversão
-            
-            // A chave 'user_id' é essencial para o schema e é requerida
-            'user_id' => 'required|integer', 
-            
-            // 💡 CORREÇÃO: Remove a regra 'unique' do CPF para permitir o updateOrCreate
-            'cpf' => 'nullable|string|max:14', 
-            'rg' => 'nullable|string|max:20', 
-            
-            // Regras de Endereço/Contato
-            'cep' => 'nullable|string|max:10',
-            'email' => 'nullable|string|max:191', // Retirado o 'email' para maior tolerância à importação.
-            'celular' => 'nullable|string|max:20',
-            
-            // Regras Específicas
-            'turma_id' => 'nullable|exists:turmas,id', 
-            'mao_dominante' => 'nullable|in:destro,canhoto',
-            
-            // Regras de Valores (Decimais)
-            'bolsa_familia' => 'nullable|numeric|min:0',
-            // ... adicione regras para todos os seus campos decimais
-        ];
-    }
-
-    // ==========================================================
-    // MÉTODOS AUXILIARES PARA EXTRAÇÃO E MAPEAMENTO
-    // ==========================================================
-    
-    /**
-     * Extrai os dados do Aluno do array combinado, mapeando os cabeçalhos do CSV.
-     */
-    private function extractAlunoData(array $data): array
-    {
-        // Define a codificação de origem mais provável para CSVs brasileiros não UTF-8
-        $from_encoding = 'ISO-8859-1';
-
-        // Helper para converter string e garantir que não é null
-        $convert_string = function($value) use ($from_encoding) {
-            if (is_null($value)) return null;
-            $value = trim($value);
-            // Tenta converter se não for UTF-8 válido (evita double-encoding)
-            if (!mb_check_encoding($value, 'UTF-8')) {
-                $value = mb_convert_encoding($value, 'UTF-8', $from_encoding);
-            }
-            return $value;
-        };
-
-        // 1. TRATAMENTO DA TURMA (Extração do CÓDIGO ALUNO)
-        // 💡 CORREÇÃO: Retorno à lógica mais robusta de extração de Turma pelo CÓDIGO ALUNO.
-        $codigoAluno = trim($data['CÓDIGO ALUNO'] ?? ''); 
-        $turma_id = null;
-
-        if (!empty($codigoAluno)) {
-            // 1.1. Extração do Ano, Semestre e Letra usando RegEx (Ex: 251TA1)
-            if (preg_match('/^(\d{2})(\d)([A-Z]+)/i', $codigoAluno, $matches)) {
-                
-                $anoCurto = $matches[1]; // Ex: 25
-                $semestre = $matches[2]; // Ex: 1
-                $turmaLetras = Str::upper($matches[3]); // Ex: TA 
-
-                // 1.2. Sanitização da Letra
-                if (Str::startsWith($turmaLetras, 'T') && strlen($turmaLetras) > 1) {
-                    $letra = substr($turmaLetras, -1); // Ex: 'TA' -> 'A'
-                } else {
-                    $letra = $turmaLetras; 
-                }
-                
-                // 1.3. Formatação do Ano (25 -> 2025)
-                $anoLetivo = (int) $anoCurto + 2000;
-                
-                // 1.4. Busca no Banco de Dados (usando os 3 filtros)
-                $turma = Turma::where('ano_letivo', $anoLetivo)
-                            ->where('periodo', $semestre)
-                            ->where('letra', $letra)
-                            ->first(); 
-
-                $turma_id = $turma->id ?? null;
+                Log::error('Erro fatal na importação: ' . $e->getMessage());
+                return redirect()->route('aluno.index')->with('error', 'Erro fatal durante a importação: ' . $e->getMessage());
             }
         }
         
-        // 2. Mapeamento e Sanitização dos Dados
-        $alunoData = [
-            // Aplica a conversão em todos os campos de texto livre que podem ter acentuação
-            'nomeCompleto' => $convert_string($data['NOME'] ?? null),
-            'nomeSocial' => $convert_string($data['NOME SOCIAL'] ?? null),
-            
-            // CRITICAL FIX: Aplica a conversão ao e-mail para corrigir o erro 1366
-            'email' => ($convertedEmail = $convert_string($data['E-MAIL'] ?? null)) ? $convertedEmail : null,
-            
-            'dataNascimento' => trim($data['DATA NASC.'] ?? null),
-            
-            'cpf' => preg_replace('/[^0-9]/', '', $data['CPF'] ?? ''), 
-            
-            'turma_id' => $turma_id,
-            
-            'rg' => $data['RG'] ?? null,
-            // Aplica a conversão de encoding e sanitiza para manter apenas números e hífens
-            'cep' => preg_replace('/[^0-9-]/', '', $convert_string($data['CEP'] ?? null)),
-            
-            'rua' => $convert_string($data['LOGRADOURO'] ?? null),
-            'numero' => $data['Nº RES.'] ?? null,
-            'complemento' => $convert_string($data['COMPLEMENTO'] ?? null),
-            'bairro' => $convert_string($data['BAIRRO'] ?? null),
-            'cidade' => $convert_string($data['LOCALIDADE'] ?? null),
+        return redirect()->route('aluno.index')->with('error', 'Não foi possível ler o arquivo CSV.');
+    }
 
-            'celular' => $data['CELULAR'] ?? null,
-            'telefone' => $data['CEL. RESPONSÁVEL'] ?? null,
-            'cursoAtual' => $convert_string($data['ESCOLARIDADE'] ?? null), 
-            'periodo' => $data['PERÍODO DA ESCOLA'] ?? null,
-            
-            'jaTrabalhou' => $data['EM PROCESSO?'] ?? 0, 
-            'ctpsAssinada' => $data['CONTRATO'] ?? 0,
-            
-            'observacoes' => $convert_string($data['Observações da equipe pedagógica'] ?? null),
-            // Ex: 'bolsa_familia' => $data['VALOR_BOLSA_FAMILIA'] ?? null, 
+    /**
+     * Lógica para processar cada linha do CSV.
+     */
+    protected function handleCsvRow(array $rowData, array $validationRules, int $lineNumber): array
+    {
+        $errors = [];
 
-            // Inserir user_id obrigatório: Usando o ID do usuário logado (ou 1 se não houver)
-            'user_id' => auth()->id() ?? 1, 
-        ];
-        
-        // TRATAMENTO DA DATA DE NASCIMENTO (Formato dd/mm/aaaa -> YYYY-MM-DD)
-        if (isset($alunoData['dataNascimento']) && 
-            !empty($alunoData['dataNascimento']) &&
-            preg_match('/^\d{2}\/\d{2}\/\d{4}$/', trim($alunoData['dataNascimento']))) 
+        // 1. OBTENÇÃO DA TURMA (CHAVE PRINCIPAL)
+        $codigoAluno = $rowData['codigoAluno'] ?? null;
+        if (!$codigoAluno) {
+            $errors[] = "Linha {$lineNumber}: Código do aluno (codigoAluno) está faltando.";
+            return ['status' => 'error', 'errors' => $errors];
+        }
+
+        // Usa o método estático do modelo Turma para encontrar o ID
+        $turmaId = Turma::findTurmaIdByCodigoAluno($codigoAluno); 
+
+        if (!$turmaId) {
+            $errors[] = "Linha {$lineNumber}: Turma não encontrada para o código '{$codigoAluno}'.";
+            return ['status' => 'error', 'errors' => $errors];
+        }
+
+        // 2. PREPARAÇÃO E TRATAMENTO DOS DADOS
+
+        // Trata a data de nascimento (assume o formato dd/mm/aaaa)
+        if (isset($rowData['dataNascimento']) && 
+            !empty($rowData['dataNascimento']) &&
+            preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', trim($rowData['dataNascimento']), $matches)) 
         {
-             try {
-                $alunoData['dataNascimento'] = Carbon::createFromFormat('d/m/Y', trim($alunoData['dataNascimento']))->format('Y-m-d');
-             } catch (\Exception $e) {
-                 // A data inválida fará o Validator falhar mais tarde (comportamento desejado)
-             }
+             // Converte dd/mm/yyyy para yyyy-mm-dd
+             $rowData['dataNascimento'] = "{$matches[3]}-{$matches[2]}-{$matches[1]}";
         }
-        
-        // Garante que campos obrigatórios/internos que queremos validar ou que são vitais sejam mantidos (mesmo que nulos/vazios)
-        return array_filter($alunoData, function ($value, $key) {
-            if (in_array($key, ['user_id', 'dataNascimento', 'turma_id'])) {
-                return true;
+
+        // Remove chaves do CSV que não estão no modelo Aluno (ex: cabeçalhos não mapeados)
+        $alunoData = array_intersect_key($rowData, array_flip(array_keys($validationRules)));
+        $alunoData['turma_id'] = $turmaId;
+        $alunoData['codigoAluno'] = $codigoAluno;
+        $alunoData['user_id'] = auth()->id() ?? 1;
+
+
+        // 3. VALIDAÇÃO
+
+        $alunoExistente = Aluno::where('codigoAluno', $codigoAluno)->first();
+
+        $finalValidationRules = $validationRules;
+        if ($alunoExistente) {
+            // Se o aluno existe, a regra de unicidade do CPF e Email deve ignorar o ID dele
+            $finalValidationRules['cpf'] = 'nullable|string|max:14|unique:alunos,cpf,' . $alunoExistente->id;
+            $finalValidationRules['email'] = 'nullable|email|max:255|unique:alunos,email,' . $alunoExistente->id;
+        } else {
+             // Se for um novo aluno, aplica a regra de unicidade normalmente
+            $finalValidationRules['cpf'] = 'nullable|string|max:14|unique:alunos,cpf';
+            $finalValidationRules['email'] = 'nullable|email|max:255|unique:alunos,email';
+        }
+
+        $validator = Validator::make($alunoData, $finalValidationRules);
+
+        if ($validator->fails()) {
+            $messages = $validator->errors()->all();
+            foreach ($messages as $msg) {
+                $errors[] = "Linha {$lineNumber}: " . $msg;
             }
-            
-            // Para todos os outros campos, remove se forem null ou string vazia.
-            return !is_null($value) && $value !== '';
-        }, ARRAY_FILTER_USE_BOTH);
-    }
-    
-    /**
-     * Extrai os dados dos Familiares. Retorna vazio.
-     */
-    private function extractFamiliaresData(array $data): array
-    {
-        return [];
+            return ['status' => 'error', 'errors' => $errors];
+        }
+
+        // 4. Criação/Atualização do Aluno
+        try {
+            if ($alunoExistente) {
+                // Atualiza (não mexe no user_id)
+                unset($alunoData['user_id']); 
+                $alunoExistente->update($alunoData);
+            } else {
+                // Cria um novo
+                Aluno::create($alunoData);
+            }
+
+            return ['status' => 'success'];
+        } catch (\Exception $e) {
+            Log::error("Erro ao salvar aluno na linha {$lineNumber}: " . $e->getMessage());
+            $errors[] = "Linha {$lineNumber}: Erro ao salvar o aluno: " . $e->getMessage();
+            return ['status' => 'error', 'errors' => $errors];
+        }
     }
 }
