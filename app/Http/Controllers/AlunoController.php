@@ -223,7 +223,6 @@ class AlunoController extends Controller
 
     /**
      * Exibe o formulário de importação (Upload CSV)
-     * MÉTODO CORRIGIDO: showImportForm
      */
     public function showImportForm()
     {
@@ -244,22 +243,24 @@ class AlunoController extends Controller
         $errors = [];
         $successCount = 0;
         
-        // Define as regras de validação para os campos do aluno
         $validationRules = [
             'nomeCompleto' => 'required|string|max:255',
             'cpf' => 'nullable|string|max:14', 
             'rg' => 'nullable|string|max:20',
-            'dataNascimento' => 'nullable|date_format:Y-m-d', // Já formatada
+            'dataNascimento' => 'nullable|date_format:Y-m-d',
             'email' => 'nullable|email|max:255', 
         ];
 
+        // CORREÇÃO 1: Delimitador ajustado para ponto e vírgula, padrão em CSVs brasileiros
+        $delimiter = ';';
+
         if (($handle = fopen($filePath, 'r')) !== FALSE) {
-            // Lê o cabeçalho (primeira linha)
-            $header = fgetcsv($handle, 1000, ',');
+            // Lê o cabeçalho (primeira linha) usando o delimitador correto
+            $header = fgetcsv($handle, 1000, $delimiter);
             
             // Mapeamento dos cabeçalhos do CSV para os campos do DB
             $columnMap = [
-                'CODIGO ALUNO' => 'codigoAluno',
+                'CÓDIGO ALUNO' => 'codigoAluno',
                 'NOME ALUNO' => 'nomeCompleto',
                 'CPF' => 'cpf',
                 'RG' => 'rg',
@@ -273,12 +274,14 @@ class AlunoController extends Controller
                 'CIDADE' => 'cidade',
                 'UF' => 'uf',
                 'BOLSA FAMILIA' => 'bolsa_familia',
-                // Adicione outros campos da sua planilha aqui
             ];
 
             $mappedHeader = [];
             foreach ($header as $colIndex => $colName) {
-                $standardizedName = Str::upper(str_replace(' ', '_', trim($colName)));
+                // CORREÇÃO 2: Padronização robusta que permite espaços múltiplos ou leading/trailing spaces,
+                // garantindo que "CÓDIGO ALUNO" lido do CSV encontre a chave "CÓDIGO ALUNO" no map.
+                $standardizedName = Str::upper(preg_replace('/\s+/', ' ', trim($colName)));
+
                 if (isset($columnMap[$standardizedName])) {
                     $mappedHeader[$colIndex] = $columnMap[$standardizedName];
                 }
@@ -288,7 +291,7 @@ class AlunoController extends Controller
             DB::beginTransaction();
             
             try {
-                while (($row = fgetcsv($handle, 1000, ',')) !== FALSE) {
+                while (($row = fgetcsv($handle, 1000, $delimiter)) !== FALSE) { // Usa o delimitador correto
                     $line++;
                     
                     $rowData = [];
@@ -298,6 +301,16 @@ class AlunoController extends Controller
                         }
                     }
 
+                    // A linha de verificação que estava falhando (agora com a lógica correta)
+                    $codigoAluno = $rowData['codigoAluno'] ?? null;
+                    if (empty($codigoAluno)) {
+                         $errors[] = "Linha {$line}: Código do aluno (codigoAluno) está faltando. Verifique se o valor na primeira coluna está vazio.";
+                         continue; 
+                    }
+                    
+                    // Adicionamos a validação do codigoAluno aqui antes de passar para o handleCsvRow
+                    $validationRules['codigoAluno'] = 'required|string|max:20';
+                    
                     $result = $this->handleCsvRow($rowData, $validationRules, $line);
                     
                     if ($result['status'] === 'success') {
@@ -314,18 +327,17 @@ class AlunoController extends Controller
                     return redirect()->route('aluno.index')->with('success', "Importação concluída: {$successCount} alunos processados com sucesso.");
                 } else {
                     DB::rollBack();
-                    // Retorna com erros
-                    return redirect()->route('aluno.index')->with('error', 'Importação concluída, mas com erros.')->with('import_errors', $errors);
+                    return redirect()->route('aluno.import.form')->with('error', 'Importação concluída, mas com erros. Por favor, verifique a lista de erros abaixo.')->with('import_errors', $errors);
                 }
 
             } catch (\Exception $e) {
                 DB::rollBack();
                 Log::error('Erro fatal na importação: ' . $e->getMessage());
-                return redirect()->route('aluno.index')->with('error', 'Erro fatal durante a importação: ' . $e->getMessage());
+                return redirect()->route('aluno.import.form')->with('error', 'Erro fatal durante a importação: ' . $e->getMessage());
             }
         }
         
-        return redirect()->route('aluno.index')->with('error', 'Não foi possível ler o arquivo CSV.');
+        return redirect()->route('aluno.import.form')->with('error', 'Não foi possível ler o arquivo CSV.');
     }
 
     /**
@@ -337,16 +349,20 @@ class AlunoController extends Controller
 
         // 1. OBTENÇÃO DA TURMA (CHAVE PRINCIPAL)
         $codigoAluno = $rowData['codigoAluno'] ?? null;
-        if (!$codigoAluno) {
-            $errors[] = "Linha {$lineNumber}: Código do aluno (codigoAluno) está faltando.";
-            return ['status' => 'error', 'errors' => $errors];
+        // A verificação de $codigoAluno é feita no método import(), mas a mantemos aqui por segurança.
+        if (!$codigoAluno) { 
+             // Este erro não deve ser atingido se o import() estiver correto.
+             $errors[] = "Linha {$lineNumber}: Código do aluno (codigoAluno) está faltando.";
+             return ['status' => 'error', 'errors' => $errors];
         }
 
+
         // Usa o método estático do modelo Turma para encontrar o ID
+        // **IMPORTANTE**: Assumo que Turma::findTurmaIdByCodigoAluno está implementado e funcional.
         $turmaId = Turma::findTurmaIdByCodigoAluno($codigoAluno); 
 
         if (!$turmaId) {
-            $errors[] = "Linha {$lineNumber}: Turma não encontrada para o código '{$codigoAluno}'.";
+            $errors[] = "Linha {$lineNumber}: Turma não encontrada para o código '{$codigoAluno}'. Verifique se a Turma (Ano-Periodo-Letra) existe.";
             return ['status' => 'error', 'errors' => $errors];
         }
 
