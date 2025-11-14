@@ -17,7 +17,7 @@ yarn-error.log
 /public/mix-manifest.json
 /public/js
 /public/css
-/public/assets
+# LINHA CORRIGIDA: Removida a linha /public/assets para incluir suas imagens!
 /storage/framework/cache/*
 /storage/framework/sessions/*
 /storage/framework/views/*

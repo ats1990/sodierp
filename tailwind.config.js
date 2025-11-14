@@ -9,21 +9,23 @@ export default {
         './resources/views/**/*.blade.php',
     ],
 
-    theme: {
-        extend: {
-            fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
-            },
-            colors: {
-                // Paleta Flamingo Pampas
-                brand: '#fb6a28',        // Laranja principal
-                'brand-dark': '#140c0b', // Preto/Marrom escuro
-                'brand-light': '#ffe5d1', // Tom claro de apoio
-                'brand-muted': '#f7c8a5', // Tom médio
-                'brand-hover': '#ff8a45', // Hover ou destaque
-            },
-        },
-    },
+   theme: {
+        extend: {
+            fontFamily: {
+                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+            },
+            colors: {
+                // Paleta Personalizada
+                'cinza-bacalhau': '#060606', // O seu preto/texto escuro
+                'flamingo': '#f47034',      // A sua cor de destaque (Primary)
+                'pampas': '#f3f1ed',        // O seu fundo claro/branco sujo
+                'pedregulho': '#c3c3c3',    // Exemplo de cinza médio/neutro (Ajuste se souber o código)
+                
+                // Opcional: Manter o nome 'primary' para facilidade
+                'primary': '#f47034',
+            },
+        },
+    },
 
     corePlugins: {},
 
