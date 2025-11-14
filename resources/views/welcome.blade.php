@@ -23,7 +23,7 @@
                 <p class="text-gray-700 mb-4">
                     Gerencie aprendizes, turmas e avaliações de forma simples e segura.
                 </p>
-                <<img src="{{ asset('assets/images/logar.svg') }}" alt="Ilustração">
+                <img src="{{ asset('assets/images/logar.svg') }}" alt="Ilustração">
             </div>
 
             {{-- Seção de login/registro --}}

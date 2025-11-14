@@ -4,7 +4,7 @@
             <img src="{{ asset('assets/images/logo.png') }}" alt="logo">
         </a>
         <a class="navbar-brand brand-logo-mini" href="{{ route('painel.coordenacao') }}">
-            <img src="{{ asset('assets/images/favicon.jpeg') }}" alt="logo">
+            <img src="{{ asset('assets/images/favicon.jpg') }}" alt="logo">
         </a>
     </div>
     <div class="navbar-menu-wrapper d-flex align-items-stretch">

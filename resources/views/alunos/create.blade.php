@@ -577,10 +577,10 @@
                 <button type="button" @click="prevStep()" x-show="step > 1" class="px-4 py-2 bg-gray-500 text-white rounded">
                     Anterior
                 </button>
-                <button type="button" @click="nextStep()" x-show="step < 7" class="px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark">
+                <button type="button" @click="nextStep()" x-show="step < 7" class="px-4 py-2 bg-flamingo text-white rounded hover:bg-cinza-bacalhau">
                     Próximo
                 </button>
-                <button type="submit" x-show="step === 7" @click="salvarAssinatura()" class="px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark">
+                <button type="submit" x-show="step === 7" @click="salvarAssinatura()" class="px-4 py-2 bg-flamingotext-white rounded hover:bg-cinza-bacalhau">
                     Cadastrar
                 </button>
             </div>
