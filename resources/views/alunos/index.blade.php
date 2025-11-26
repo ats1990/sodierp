@@ -236,7 +236,7 @@
                 <td>{{ $aluno->cpf }}</td>
                 <td>
                     {{-- Usa a relação 'turma' e o Accessor 'nomeCompleto' --}}
-                    {{ $aluno->turma->nomeCompleto ?? 'N/A' }}
+                    {{ $aluno->turma?->nomeCompleto ?? 'N/A' }}
                 </td>
 
                 {{-- BOTÕES DE AÇÃO POR ALUNO --}}

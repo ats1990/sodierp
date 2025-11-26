@@ -27,6 +27,11 @@ class Turma extends Model
      * Accessor que retorna o nome completo da turma com o período formatado.
      * Ex: "2025 - A (1º Semestre)"
      */
+    public function alunos(): HasMany
+    {
+        // Assume que a chave estrangeira na tabela 'alunos' é 'turma_id'
+        return $this->hasMany(Aluno::class, 'turma_id');
+    }
     public function getNomeCompletoAttribute()
     {
         // Garante que o ano seja exibido com 4 dígitos.

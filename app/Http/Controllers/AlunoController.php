@@ -41,9 +41,65 @@ class AlunoController extends Controller
     // MÉTODOS CRUD PADRÃO
     // ==========================================================
 
-    public function index()
+    public function index(Request $request)
     {
-        // Implemente a lógica de listagem (ex: return view('alunos.index', ['alunos' => Aluno::all()]))
+        // 1. DADOS PARA FILTROS E VIEW
+        // Garante que estas variáveis existem para popular os filtros da view
+        $turmas = Turma::orderBy('ano_letivo', 'desc')->get();
+        // Assume que anosLetivos e Periodos são coleções simples para o filtro
+        $anosLetivos = Turma::select('ano_letivo')->distinct()->pluck('ano_letivo')->sortDesc();
+        $periodos = Turma::select('periodo')->distinct()->pluck('periodo')->sort();
+
+
+        // 2. INÍCIO DA QUERY
+        // Carrega a relação 'turma' para evitar o problema de N+1
+        $query = Aluno::query()->with('turma'); 
+
+        // 3. FILTRAGEM
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where('nomeCompleto', 'like', "%{$search}%")
+                  ->orWhere('codigo_matricula', 'like', "%{$search}%")
+                  ->orWhere('cpf', 'like', "%{$search}%");
+        }
+
+        if ($request->filled('turma_id')) {
+            $query->where('turma_id', $request->input('turma_id'));
+        }
+
+        if ($request->filled('ano_letivo')) {
+             // Filtra por Turmas que tenham o ano letivo selecionado
+             $query->whereHas('turma', function ($q) use ($request) {
+                 $q->where('ano_letivo', $request->input('ano_letivo'));
+             });
+        }
+        
+        if ($request->filled('periodo')) {
+             // Filtra por Turmas que tenham o período selecionado
+             $query->whereHas('turma', function ($q) use ($request) {
+                 $q->where('periodo', $request->input('periodo'));
+             });
+        }
+
+
+        // 4. ORDERING (Ajustado para segurança contra dados nulos)
+        $sortColumn = $request->get('sort', 'codigo_matricula');
+        $sortDirection = $request->get('direction', 'asc');
+        $safeSortColumns = ['codigo_matricula', 'nomeCompleto', 'turma_id', 'status']; // dataNascimento removido por segurança inicial
+
+        // Aplica a ordenação se for uma coluna segura. Caso contrário, usa o padrão.
+        if (in_array($sortColumn, $safeSortColumns)) {
+            $query->orderBy($sortColumn, $sortDirection);
+        } else {
+            $query->orderBy('codigo_matricula', 'asc');
+        }
+
+        // 5. EXECUÇÃO DA QUERY E PAGINAÇÃO
+        $alunos = $query->paginate(20)->withQueryString(); 
+        // ->withQueryString() mantém os filtros ativos ao mudar de página
+
+        // 6. RETORNO DA VIEW
+        return view('alunos.index', compact('alunos', 'turmas', 'anosLetivos', 'periodos'));
     }
 
     public function create()
