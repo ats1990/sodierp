@@ -168,22 +168,20 @@ return [
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
+        Maatwebsite\Excel\ExcelServiceProvider::class,
        
     ])->toArray(),
 
     /*
-    |--------------------------------------------------------------------------
-    | Class Aliases
-    |--------------------------------------------------------------------------
-    |
-    | This array of class aliases will be registered when this application
-    | is started. However, feel free to register as many as you wish as
-    | the aliases are "lazy" loaded so they don't hinder performance.
-    |
-    */
+|--------------------------------------------------------------------------
+| Class Aliases
+|--------------------------------------------------------------------------
+*/
 
-    'aliases' => Facade::defaultAliases()->merge([
-        // 'Example' => App\Facades\Example::class,
-    ])->toArray(),
+'aliases' => Facade::defaultAliases()->merge([
+    // 'Example' => App\Facades\Example::class,
+    // Garante que o alias do Excel seja adicionado à lista padrão:
+    'Excel' => Maatwebsite\Excel\Facades\Excel::class, 
+])->toArray(),
 
 ];

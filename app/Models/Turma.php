@@ -5,10 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\DB; 
-
-use App\Models\Aluno;
-use App\Models\User;
 
 class Turma extends Model
 {
@@ -17,89 +13,109 @@ class Turma extends Model
     protected $fillable = [
         'periodo',
         'letra',
-        'ano_letivo',
+        'ano_letivo', 
         'vagas',
         'data_inicio', 
         'data_fim',    
         'professor_id',
+        'is_active', // <-- NOVO CAMPO
     ];
 
-    public function professor()
-    {
-        return $this->belongsTo(User::class, 'professor_id');
-    }
-
-    public function alunos(): HasMany
-    {
-        return $this->hasMany(Aluno::class, 'turma_id');
-    }
+    // ... (Métodos professor() e alunos() permanecem iguais)
 
     /**
      * Accessor que retorna o nome completo da turma com o período formatado.
-     * Ex: "2024 - A (1º Semestre)"
+     * Ex: "2025 - A (1º Semestre)"
      */
     public function getNomeCompletoAttribute()
     {
-        // Mapeia os valores do DB ('1' e '2') para o formato de exibição.
+        // Garante que o ano seja exibido com 4 dígitos.
+        $ano = strlen((string)$this->ano_letivo) === 2 
+            ? 2000 + (int)$this->ano_letivo 
+            : $this->ano_letivo;
+
         $periodoDisplay = match((string)$this->periodo) {
             '1' => '1º Semestre',
             '2' => '2º Semestre',
             default => $this->periodo,
         };
         
-        return "{$this->ano_letivo} - {$this->letra} ({$periodoDisplay})";
+        return "{$ano} - {$this->letra} ({$periodoDisplay})" . ($this->is_active ? '' : ' (Histórica)');
     }
 
-
     /**
-     * Determina o próximo índice alfabético para um dado ano letivo.
-     * 🚨 CHAVE: A busca pela última letra é GLOBAL para o ano, garantindo continuidade entre os períodos.
-     * @param int $anoLetivo
-     * @return int O índice alfabético (0 para 'A', 1 para 'B', etc.)
+     * Tenta encontrar a turma, ou cria uma nova se não for encontrada (Turma Histórica).
+     *
+     * @param string $codigoAluno O código no formato Ex: 251TA1
+     * @return int|null O ID da Turma encontrada ou criada.
      */
+    public static function findOrCreateTurmaIdByCodigoAluno(string $codigoAluno): ?int
+    {
+        if (!preg_match('/^(\d{2})(\d)([A-Z]+)(\d+)$/i', $codigoAluno, $matches)) {
+            return null; // O código não corresponde ao padrão
+        }
+
+        // 1. Extração dos Componentes
+        $anoLetivoAbreviado = (string) $matches[1]; // '25'
+        $periodo = $matches[2];                     // '1'
+        $letraCompleta = strtoupper($matches[3]);    // 'TA'
+        $letraBusca = substr($letraCompleta, -1);   // 'A'
+        $anoLetivoCompleto = 2000 + (int)$anoLetivoAbreviado; // '2025'
+        
+        if (!in_array($periodo, ['1', '2'])) {
+            return null; // Período inválido
+        }
+        
+        // 2. Tenta buscar com 4 ou 2 dígitos (critérios para a busca)
+        $turma = self::where('periodo', $periodo)
+                     ->where('letra', $letraBusca)
+                     ->where(function ($query) use ($anoLetivoAbreviado, $anoLetivoCompleto) {
+                         $query->where('ano_letivo', $anoLetivoAbreviado)
+                               ->orWhere('ano_letivo', $anoLetivoCompleto);
+                     })
+                     ->first();
+
+
+        // Se a turma foi encontrada (ativa ou já migrada), retorna o ID
+        if ($turma) {
+            return $turma->id;
+        }
+
+        // 3. Criação Automática da Turma Histórica
+        
+        try {
+            $novaTurma = self::create([
+                // Usamos o ano completo na criação para evitar ambiguidade (2025)
+                'ano_letivo' => $anoLetivoCompleto, 
+                'periodo' => $periodo,
+                'letra' => $letraBusca,
+                'vagas' => 0, 
+                'is_active' => false, // <-- MARCA COMO HISTÓRICA / INATIVA
+                'data_inicio' => null, 
+                'data_fim' => null,   
+                'professor_id' => null, 
+            ]);
+
+            return $novaTurma->id;
+
+        } catch (\Exception $e) {
+            // Falha na criação (ex: campos NOT NULL faltando)
+            return null; 
+        }
+    }
+    
+    // O método getNextAlphaIndex não é mais relevante neste contexto de importação histórica
+    // e pode ser removido, se desejar, mas vou mantê-lo aqui:
     public static function getNextAlphaIndex(int $anoLetivo): int
     {
-        // Encontra a turma com a letra de maior ordem (Z) para o ano, em QUALQUER período.
         $lastTurma = self::where('ano_letivo', $anoLetivo)
-                          ->whereNotNull('letra')
-                          ->orderBy('letra', 'desc') 
-                          ->first();
+                         ->whereNotNull('letra')
+                         ->orderBy('letra', 'desc') 
+                         ->first();
 
         if (!$lastTurma) {
-            return 0; // Começa em 'A' (índice 0)
+            return 0; 
         }
-
-        // Converte a última letra encontrada para o próximo índice (ex: 'A' -> 1)
         return ord($lastTurma->letra) - ord('A') + 1;
-    }
-
-    /**
-     * Tenta encontrar a turma correta com base no código do aluno (que inclui ano/semestre).
-     * @param string $codigoAluno O código no formato AAAA-S-T-X
-     * @return int|null O ID da Turma ou null se não encontrada.
-     */
-    public static function findTurmaIdByCodigoAluno(string $codigoAluno): ?int
-    {
-        // Padrão esperado: AAAA (Ano) - S (Semestre) - T (Turma) - X (Sequencial)
-        // Ex: 2024-1-A-001 (Ano 2024, 1º Semestre, Turma A)
-        if (preg_match('/^(\d{4})-(\d)-([A-Z])-\d+$/i', $codigoAluno, $matches)) {
-            $anoLetivo = (int) $matches[1];
-            $periodo = $matches[2]; // Deve ser '1' ou '2' (Semestre)
-            $letra = strtoupper($matches[3]); // Letra da Turma, ex: 'A'
-
-            // Garante que o período é um semestre válido (1 ou 2)
-            if (!in_array($periodo, ['1', '2'])) {
-                return null;
-            }
-
-            $turma = self::where('ano_letivo', $anoLetivo)
-                          ->where('periodo', $periodo)
-                          ->where('letra', $letra)
-                          ->first();
-                          
-            return $turma->id ?? null;
-        }
-
-        return null;
     }
 }

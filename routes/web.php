@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Aluno;
+use App\Http\Controllers\ImportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AlunoController;
 use App\Http\Controllers\ProfessorController;
@@ -12,7 +13,7 @@ use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\FormacaoController;
 use App\Http\Controllers\ChamadaController;
 use App\Http\Controllers\FamiliarController; 
-use App\Http\Controllers\TurmaController; // 💡 NOVO: Controller de Turma
+use App\Http\Controllers\TurmaController; 
 use App\Models\Presenca;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
@@ -82,10 +83,10 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     // ==========================================================
     
     // 1. ROTAS ESTÁTICAS E ESPECÍFICAS
-    Route::get('alunos/importar', [AlunoController::class, 'showImportForm'])
+    Route::get('alunos/importar', [ImportController::class, 'showImportForm']) // ✅ CORRIGIDO
         ->middleware('role:coordenacao')
         ->name('aluno.import.form');
-    Route::post('alunos/importar', [AlunoController::class, 'import'])
+    Route::post('alunos/importar', [ImportController::class, 'import']) // ✅ CORRIGIDO
         ->middleware('role:coordenacao')
         ->name('aluno.import.store');
     Route::get('alunos/create', [AlunoController::class, 'create'])->name('aluno.create');
