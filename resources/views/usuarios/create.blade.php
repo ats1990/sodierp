@@ -180,8 +180,8 @@
             {{-- ===================== Buttons ===================== --}}
             <div class="flex justify-between mt-6">
                 <button type="button" @click="prevStep()" x-show="step>1" class="px-4 py-2 bg-gray-500 text-white rounded">Anterior</button>
-                <button type="button" @click="nextStep()" x-show="step<3" class="px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark">Próximo</button>
-                <button type="submit" x-show="step===3" class="px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark">Cadastrar Usuário</button>
+                <button type="button" @click="nextStep()" x-show="step<3" class="px-4 py-2 bg-flamingo text-white rounded hover:bg-brand-dark">Próximo</button>
+                <button type="submit" x-show="step===3" class="px-4 py-2 bg-flamingo text-white rounded hover:bg-brand-dark">Cadastrar Usuário</button>
             </div>
         </form>
     </div>

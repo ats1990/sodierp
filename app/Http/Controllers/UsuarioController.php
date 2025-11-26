@@ -4,24 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\Usuario;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule; // Necessário para a validação unique()->ignore()
+use Illuminate\Support\Facades\Hash; // Necessário para criptografar a senha
 
 class UsuarioController extends Controller
 {
     /**
-     * Exibe a lista de usuários para gerenciamento (MÉTODO CHAMADO PELA ROTA)
-     *
+     * Exibe a lista de usuários para gerenciamento.
      * @return \Illuminate\View\View
      */
     public function index()
     {
-        // 1. Busca todos os usuários ordenados pelo nome completo
         $usuarios = Usuario::orderBy('nomeCompleto')->get(); 
-        
-        // 2. Retorna a view de listagem.
         return view('painel.usuarios.index', compact('usuarios')); 
     }
     
-    // 🔹 Mantenha os métodos de Cadastro (seus originais)
+    // 🔹 Métodos de Cadastro (Rotas de Acesso Geral)
     public function create()
     {
         return view('usuarios.create');
@@ -29,7 +27,6 @@ class UsuarioController extends Controller
 
     public function store(Request $request)
     {
-        // ... (Seu código de validação e criação de usuário)
         $request->validate([
             'nomeCompleto' => 'required|string|max:255',
             'email' => 'required|email|unique:usuarios,email',
@@ -45,7 +42,9 @@ class UsuarioController extends Controller
             'cpf' => $request->cpf,
             'tipo' => $request->tipo,
             'status' => 'inativo', 
-            'password' => $request->password,
+            // 🚨 CORREÇÃO DE SEGURANÇA: Senha deve ser criptografada!
+            'password' => Hash::make($request->password), 
+            // Campos de programa e disciplinas (manutenção do seu código)
             'programa_basica' => $request->has('programa_basica'),
             'programa_aprendizagem' => $request->has('programa_aprendizagem'),
             'programa_convivencia' => $request->has('programa_convivencia'),
@@ -56,6 +55,76 @@ class UsuarioController extends Controller
 
         return redirect()->route('usuarios.create')
                           ->with('success', 'Usuário cadastrado com sucesso! Ele está inativo até ser ativado pela coordenação.');
+    }
+
+
+    // ==========================================================
+    // 🆕 MÉTODOS DE EDIÇÃO E ATUALIZAÇÃO (IMPLEMENTADOS)
+    // ==========================================================
+
+    /**
+     * Exibe o formulário para editar um usuário existente.
+     * @param \App\Models\Usuario $usuario
+     * @return \Illuminate\View\View
+     */
+    public function edit(Usuario $usuario)
+    {
+        // Garante que apenas coordenadores possam acessar
+        if (!auth()->user()->isCoordenacao()) {
+            abort(403, 'Ação não autorizada.');
+        }
+        // A view deve estar em resources/views/painel/usuarios/edit.blade.php
+        return view('painel.usuarios.edit', compact('usuario'));
+    }
+
+    /**
+     * Atualiza um usuário existente no banco de dados.
+     * @param \Illuminate\Http\Request $request
+     * @param \App\Models\Usuario $usuario
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function update(Request $request, Usuario $usuario)
+    {
+        if (!auth()->user()->isCoordenacao()) {
+             abort(403, 'Ação não autorizada.');
+        }
+
+        // 1. Validação dos dados
+        $validatedData = $request->validate([
+            'nomeCompleto' => 'required|string|max:255',
+            // Validações com exceção do próprio usuário ($usuario->id)
+            'email' => ['required', 'email', Rule::unique('usuarios', 'email')->ignore($usuario->id)],
+            'cpf' => ['nullable', 'string', Rule::unique('usuarios', 'cpf')->ignore($usuario->id)],
+            'password' => 'nullable|string|min:6|confirmed', 
+            'tipo' => ['required', Rule::in(['professor', 'coordenacao', 'administracao', 'psicologo'])],
+        ]);
+
+        // 2. Preparação dos dados
+        $usuarioData = [
+            'nomeCompleto' => $validatedData['nomeCompleto'],
+            'email' => $validatedData['email'],
+            'cpf' => $validatedData['cpf'],
+            'tipo' => $validatedData['tipo'],
+            // Campos de programa e disciplinas (manutenção do seu código)
+            'nomeSocial' => $request->nomeSocial,
+            'programa_basica' => $request->has('programa_basica'),
+            'programa_aprendizagem' => $request->has('programa_aprendizagem'),
+            'programa_convivencia' => $request->has('programa_convivencia'),
+            'disciplinas_basica' => $request->disciplinas_basica ?: [],
+            'disciplinas_aprendizagem' => $request->disciplinas_aprendizagem ?: [],
+            'disciplinas_convivencia' => $request->disciplinas_convivencia ?: [],
+        ];
+        
+        // 3. Atualiza a senha APENAS se o campo não estiver vazio, criptografando-a
+        if (!empty($validatedData['password'])) {
+            $usuarioData['password'] = Hash::make($validatedData['password']);
+        }
+
+        // 4. Atualização no banco de dados
+        $usuario->update($usuarioData);
+
+        return redirect()->route('usuarios.index')
+                         ->with('success', 'Usuário ' . $usuario->nomeCompleto . ' atualizado com sucesso!');
     }
 
 

@@ -271,7 +271,7 @@
                     <label class="font-semibold mb-2 block">Parentesco e Renda Familiar:</label>
 
                     <table class="w-full border border-gray-300 text-left">
-                        <thead class="bg-brand text-white rounded hover:bg-brand-dark">
+                        <thead class="bg-flamingo text-white rounded hover:bg-brand-dark">
                             <tr>
                                 <th class="border px-2 py-1">Parentesco</th>
                                 <th class="border px-2 py-1">Nome completo</th>
@@ -299,7 +299,7 @@
                         </tbody>
                     </table>
 
-                    <button type="button" @click="addRow()" class="mt-2 px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark">+ Adicionar</button>
+                    <button type="button" @click="addRow()" class="mt-2 px-4 py-2 bg-flamingo text-white rounded hover:bg-brand-dark">+ Adicionar</button>
 
                     <!-- Input escondido -->
                     <input type="hidden" name="familiares_json" id="familiaresInput">
@@ -580,7 +580,7 @@
                 <button type="button" @click="nextStep()" x-show="step < 7" class="px-4 py-2 bg-flamingo text-white rounded hover:bg-cinza-bacalhau">
                     Próximo
                 </button>
-                <button type="submit" x-show="step === 7" @click="salvarAssinatura()" class="px-4 py-2 bg-flamingotext-white rounded hover:bg-cinza-bacalhau">
+                <button type="submit" x-show="step === 7" @click="salvarAssinatura()" class="px-4 py-2 bg-flamingo text-white rounded hover:bg-cinza-bacalhau">
                     Cadastrar
                 </button>
             </div>
@@ -834,7 +834,7 @@
                 customClass: {
                     popup: 'rounded-xl shadow-lg border-2 border-brand',
                     title: 'text-xl font-bold text-brand',
-                    confirmButton: 'bg-brand hover:bg-brand-dark text-white font-semibold px-6 py-2 rounded-lg'
+                    confirmButton: 'bg-bg-flamingo hover:bg-brand-dark text-white font-semibold px-6 py-2 rounded-lg'
                 }
             }).then((result) => {
                 if (result.isConfirmed) {

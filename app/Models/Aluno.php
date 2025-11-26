@@ -42,6 +42,7 @@ class Aluno extends Model
         'celular',
         'email',
         'escola',
+        'codigo_matricula',
         'ano',
         'periodo',
         'concluido',

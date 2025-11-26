@@ -23,49 +23,50 @@ $role = strtolower(auth()->user()->tipo ?? 'guest');
 
 // Mapeamento dos menus por role
 $menus = [
-'coordenacao' => [
-// Dashboard
-['title' => 'Dashboard', 'route' => 'painel.coordenacao', 'icon' => 'mdi-home'],
-// Gerenciamento de Usuários
-['title' => 'Usuários', 'route' => 'usuarios.index', 'icon' => 'mdi-account-circle'],
+    'coordenacao' => [
+        // Dashboard
+        ['title' => 'Dashboard', 'route' => 'painel.coordenacao', 'icon' => 'mdi-home'],
+        // Gerenciamento de Usuários
+        ['title' => 'Usuários', 'route' => 'usuarios.index', 'icon' => 'mdi-account-circle'],
 
-// MENU FORMAÇÃO (COM SUBMENUS)
-[
-'title' => 'Formação',
-'id' => 'formacao-menu', // ID para o collapse
-'icon' => 'mdi-school', // Ícone para Formação
-// Os submenus da Formação:
-'submenus' => [
-['title' => 'Turmas', 'route' => 'formacao.turmas.index'],
-['title' => 'Chamada', 'route' => 'chamada.index'],
-['title' => 'Notas', 'route' => 'formacao.notas.index'],
-['title' => 'Boletim', 'route' => 'formacao.boletim.index'],
-['title' => 'Certificado', 'route' => 'formacao.certificado.index'],
-['title' => 'Importar Dados', 'route' => 'aluno.import.form'],
-['title' => 'Alunos', 'route' => 'aluno.index', 'icon' => 'mdi-account-multiple-outline'],
-]
-],
-],
-'professor' => [
-['title' => 'Dashboard', 'route' => 'painel.professor', 'icon' => 'mdi-home'],
-// Chamada para o Professor (usa a rota simples)
-['title' => 'Chamada', 'route' => 'chamada.index', 'icon' => 'mdi-calendar-check'],
-],
+        // MENU FORMAÇÃO (COM SUBMENUS)
+        [
+            'title' => 'Formação',
+            'id' => 'formacao-menu', // ID para o collapse
+            'icon' => 'mdi-school', // Ícone para Formação
+            // Os submenus da Formação:
+            'submenus' => [
+                ['title' => 'Turmas', 'route' => 'formacao.turmas.index'],
+                ['title' => 'Chamada', 'route' => 'chamada.index'],
+                ['title' => 'Notas', 'route' => 'formacao.notas.index'],
+                ['title' => 'Boletim', 'route' => 'formacao.boletim.index'],
+                ['title' => 'Certificado', 'route' => 'formacao.certificado.index'],
+                ['title' => 'Importar Dados', 'route' => 'aluno.import.form'],
+                ['title' => 'Alunos', 'route' => 'aluno.index', 'icon' => 'mdi-account-multiple-outline'], // Mantido aqui
+            ]
+        ],
+    ],
+    'professor' => [
+        ['title' => 'Dashboard', 'route' => 'painel.professor', 'icon' => 'mdi-home'],
+        // Chamada para o Professor (usa a rota simples)
+        ['title' => 'Chamada', 'route' => 'chamada.index', 'icon' => 'mdi-calendar-check'],
+    ],
 
-// Estrutura correta para a role 'administracao' (array plano)
-'administracao' => [
-['title' => 'Dashboard', 'route' => 'painel.administracao', 'icon' => 'mdi-home'],
-// NOVO: LISTAGEM DE ALUNOS (Administracao)
-['title' => 'Alunos', 'route' => 'aluno.index', 'icon' => 'mdi-account-multiple-outline'],
-['title' => 'Chamada', 'route' => 'chamada.index', 'icon' => 'mdi-calendar-check'], // Chamada para Administração
-],
+    // Estrutura para a role 'administracao' (array plano)
+    'administracao' => [
+        ['title' => 'Dashboard', 'route' => 'painel.administracao', 'icon' => 'mdi-home'],
+        // NOVO: LISTAGEM DE ALUNOS (Administracao)
+        ['title' => 'Alunos', 'route' => 'aluno.index', 'icon' => 'mdi-account-multiple-outline'],
+        ['title' => 'Chamada', 'route' => 'chamada.index', 'icon' => 'mdi-calendar-check'], // Chamada para Administração
+    ],
 
-// 'psicologo' é uma chave de nível superior
-'psicologo' => [
-['title' => 'Dashboard', 'route' => 'painel.psicologo', 'icon' => 'mdi-home'],
-// LISTAGEM DE ALUNOS (Psicologo)
-['title' => 'Alunos', 'route' => 'aluno.index', 'icon' => 'mdi-account-multiple-outline'],
-],
+    // Estrutura para a role 'psicologo'
+    'psicologo' => [
+        ['title' => 'Dashboard', 'route' => 'painel.psicologo', 'icon' => 'mdi-home'],
+        // LISTAGEM DE ALUNOS (Psicologo)
+        ['title' => 'Alunos', 'route' => 'aluno.index', 'icon' => 'mdi-account-multiple-outline'],
+        ['title' => 'Chamada', 'route' => 'chamada.index', 'icon' => 'mdi-calendar-check'],
+    ],
 ];
 @endphp
 
@@ -74,12 +75,13 @@ $menus = [
         <li class="nav-item nav-profile">
             <a href="#" class="nav-link">
                 <div class="nav-profile-image">
-                    <img src="{{ asset('assets/images/faces/face1.jpg') }}" alt="profile" />
+                    {{-- Usando um placeholder genérico para evitar a necessidade de arquivo local --}}
+                    <img src="{{ asset('assets/images/faces/face1.jpg') }}" alt="profile" onerror="this.onerror=null;this.src='https://placehold.co/100x100/f47034/ffffff?text={{ strtoupper(substr(auth()->user()->nomeCompleto ?? 'U', 0, 1)) }}'" />
                     <span class="login-status online"></span>
 
                 </div>
                 <div class="nav-profile-text d-flex flex-column">
-                    <span class="font-weight-bold mb-2">{{ auth()->user()->nomeCompleto }}</span>
+                    <span class="font-weight-bold mb-2">{{ auth()->user()->nomeCompleto ?? 'Usuário Desconhecido' }}</span>
                     <span class="text-secondary text-small">{{ ucfirst($role) }}</span>
                 </div>
                 <i class="mdi mdi-bookmark-check text-success nav-profile-badge"></i>
@@ -94,7 +96,7 @@ $menus = [
         @php
         $isAnySubmenuActive = collect($menu['submenus'])->contains(function($submenu) {
         // Verifica se o submenu tem rota e se a rota está ativa
-        // Não é necessário chamar isActiveRoute() aqui, request()->routeIs() é suficiente para a checagem
+        // Usa request()->routeIs() para checagem mais robusta
         return isset($submenu['route']) && request()->routeIs($submenu['route'] . '*');
         });
         @endphp
@@ -115,23 +117,24 @@ $menus = [
                     <li class="nav-item">
                         {{-- Certifica-se de que a rota existe antes de tentar gerar o link --}}
                         @if (isset($submenu['route']) && Route::has($submenu['route']))
+                        {{-- O isActiveRoute() funciona porque foi definido acima --}}
                         <a class="nav-link {{ isActiveRoute($submenu['route']) }}" href="{{ route($submenu['route']) }}">{{ $submenu['title'] }}</a>
                         @else
-                        <a class="nav-link disabled">{{ $submenu['title'] }}</a>
+                        <a class="nav-link disabled">{{ $submenu['title'] }} (Rota Indisponível)</a>
                         @endif
 
                     </li>
                     @endforeach
-
+                </ul>
             </div>
 
         </li>
         {{-- Lógica para itens simples --}}
         @else
-        <li class="nav-item">
+        <li class="nav-item {{ isActiveRoute($menu['route'] ?? 'non.existent.route') }}">
             {{-- Verifica se a rota existe para evitar erro de `route()` --}}
             @if (isset($menu['route']) && Route::has($menu['route']))
-            <a class="nav-link {{ isActiveRoute($menu['route']) }}" href="{{ route($menu['route']) }}">
+            <a class="nav-link" href="{{ route($menu['route']) }}">
                 <span class="menu-title">{{ $menu['title'] }}</span>
                 <i class="mdi {{ $menu['icon'] }} menu-icon"></i>
             </a>

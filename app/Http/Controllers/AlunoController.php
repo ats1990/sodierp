@@ -9,422 +9,671 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
-use App\Models\Turma; 
+use App\Models\Turma;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log; // Adicionado para debug
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 
 class AlunoController extends Controller
 {
     // ==========================================================
-    // MÉTODOS CRUD BÁSICOS E ESSENCIAIS
+    // 💡 SOLUÇÃO: MÉTODO HELPER PARA TRATAR CAMPOS BOOLEANOS AUSENTES
+    // Isso garante que todo checkbox desmarcado (ausente no Request) receba '0'.
+    // Resolve: "The [field] field must be true or false."
     // ==========================================================
-    
+
     /**
-     * Exibe a listagem de alunos com paginação, filtragem e ordenação.
-     * MÉTODO INDEX ATUALIZADO para usar filtros de Ano e Semestre.
+     * Injeta o valor '0' (false) no Request para todos os campos booleanos
+     * que estão ausentes (porque não foram marcados/selecionados no formulário).
      */
-    public function index(Request $request)
-    {
-        $query = Aluno::query();
+   
+    public function showImportForm()
+{
+    return view('alunos.import');
+}
+    public function import(Request $request)
+{
+    $request->validate([
+        'csv_file' => 'required|file|mimes:csv,txt|max:10240',
+    ]);
 
-        // 1. FILTRAGEM POR ANO, PERÍODO OU TURMA
-        
-        $turmaId = $request->input('turma_id');
-        $anoLetivo = $request->input('ano_letivo');
-        $periodo = $request->input('periodo');
+    $file = $request->file('csv_file');
+    $filePath = $file->getRealPath();
 
-        // Se a turma_id específica for selecionada, ela tem prioridade.
-        if ($turmaId) {
-            $query->where('turma_id', $turmaId);
-        } 
-        // Caso contrário, filtra pelo ano letivo E/OU período, usando whereHas na relação 'turma'.
-        elseif ($anoLetivo || $periodo) {
-            $query->whereHas('turma', function ($q) use ($anoLetivo, $periodo) {
-                if ($anoLetivo) {
-                    $q->where('ano_letivo', $anoLetivo);
-                }
-                if ($periodo) {
-                    // O valor de $periodo será '1' ou '2' (Semestre)
-                    $q->where('periodo', $periodo);
-                }
-            });
-        }
-        
-        // 2. ORDENAÇÃO
-        // Pega os parâmetros da requisição ou usa padrões
-        $sortColumn = $request->get('sort', 'id'); 
-        $sortDirection = $request->get('direction', 'desc');
+    $delimiter = ';';
+    $handle = fopen($filePath, 'r');
 
-        // Colunas permitidas para ordenação (segurança)
-        $allowedColumns = ['id', 'nomeCompleto', 'cpf', 'turma_id'];
-        if (!in_array($sortColumn, $allowedColumns)) {
-            $sortColumn = 'id';
-        }
-        
-        // Aplica a ordenação
-        if ($sortColumn === 'turma_id') {
-            // Ordena pela Turma (o que geralmente significa ordenar por ano/letra da turma)
-            $query->with(['turma' => function ($q) use ($sortDirection) {
-                $q->orderBy('ano_letivo', $sortDirection)->orderBy('letra', $sortDirection);
-            }])
-            ->orderBy('turma_id', $sortDirection); 
-        } else {
-             // Se estiver ordenando por 'nomeCompleto' ou 'cpf', usa a ordenação direta
-            $query->orderBy($sortColumn, $sortDirection);
-        }
-
-        // 3. PAGINAÇÃO E RESULTADOS
-        $alunos = $query->paginate(20)->withQueryString();
-
-        // 4. VARIÁVEIS DE FILTRO PARA A VIEW
-        
-        // Turmas (para o filtro Turma Específica)
-        $turmas = Turma::orderBy('ano_letivo', 'desc')->orderBy('letra', 'asc')->get();
-        
-        // Anos Letivos (valores distintos existentes no banco)
-        $anosLetivos = Turma::select('ano_letivo')
-            ->distinct()
-            ->orderBy('ano_letivo', 'desc')
-            ->pluck('ano_letivo');
-
-        // Períodos (APENAS Semestres '1' e '2') - Valores do DB
-        $periodos = ['1', '2']; 
-
-        return view('alunos.index', compact('alunos', 'turmas', 'anosLetivos', 'periodos'));
+    if (!$handle) {
+        return redirect()->back()->with('error', 'Não foi possível abrir o arquivo para leitura.');
     }
 
+    // ==============================
+    // 1. LER CABEÇALHO DO CSV
+    // ==============================
+    $header = fgetcsv($handle, 0, $delimiter);
+    if (!$header) {
+        return redirect()->back()->with('error', 'O arquivo CSV está vazio ou inválido.');
+    }
+
+    // Normaliza cabeçalhos do CSV → snake_case sem acentos
+    $normalizedHeader = [];
+    foreach ($header as $col) {
+        $normalizedHeader[] = Str::snake(Str::ascii(trim($col)));
+    }
+
+    // ============================================
+    // COLUNAS QUE EXISTEM NO BANCO (fillable)
+    // ============================================
+    $dbColumns = [
+        'codigo_matricula',
+        'nomeCompleto',
+        'nomeSocial',
+        'dataNascimento',
+        'cpf',
+        'rg',
+        'mao_dominante',
+        'carteira_trabalho',
+        'ja_trabalhou',
+        'ctps_assinada',
+        'qual_funcao',
+        'cep',
+        'rua',
+        'numero',
+        'complemento',
+        'bairro',
+        'cidade',
+        'uf',
+        'telefone',
+        'celular',
+        'email',
+        'escola',
+        'ano',
+        'periodo',
+        'concluido',
+        'ano_conclusao',
+        'curso_atual',
+        'moradia',
+        'moradia_porquem',
+        'beneficio',
+        'bolsa_familia',
+        'bpc_loas',
+        'pensao',
+        'aux_aluguel',
+        'renda_cidada',
+        'outros',
+        'agua',
+        'alimentacao',
+        'gas',
+        'luz',
+        'medicamento',
+        'telefone_internet',
+        'aluguel_financiamento',
+        'observacoes',
+        'ubs',
+        'convenio',
+        'qual_convenio',
+        'vacinacao',
+        'queixa_saude',
+        'qual_queixa',
+        'alergia',
+        'qual_alergia',
+        'tratamento',
+        'qual_tratamento',
+        'uso_remedio',
+        'qual_remedio',
+        'cirurgia',
+        'motivo_cirurgia',
+        'pcd',
+        'qual_pcd',
+        'necessidade_especial',
+        'doenca_congenita',
+        'qual_doenca_congenita',
+        'psicologo',
+        'quando_psicologo',
+        'convulsao',
+        'quando_convulsao',
+        'familia_doenca',
+        'qual_familia_doenca',
+        'familia_depressao',
+        'quem_familia_depressao',
+        'medico_especialista',
+        'qual_medico_especialista',
+        'familia_psicologico',
+        'quem_familia_psicologico',
+        'familia_alcool',
+        'quem_familia_alcool',
+        'familia_drogas',
+        'quem_familia_drogas',
+        'declaracao_consentimento',
+        'assinatura'
+    ];
+
+    // ====================================
+    // MAPEAR CABEÇALHO → CAMPOS DO BANCO
+    // ====================================
+    $columnMap = [];
+    foreach ($normalizedHeader as $idx => $col) {
+
+        // se o CSV tem "nome_completo" → no banco é "nomeCompleto"
+        $manualMap = [
+    // Mapeamento das colunas reais do seu CSV
+    'codigo_aluno' => 'codigo_matricula',
+    'turma' => 'turma_id',
+    'n' => 'numero',
+    'nome' => 'nomeCompleto',
+    'nome_social' => 'nomeSocial',
+    'status' => 'status',
+    'empresas_que_ja_foi_encaminhado' => 'empresa_encaminhada',
+    'em_processo' => 'em_processo',
+    'contrato' => 'contrato',
+    'e_mail' => 'email',
+    'identidade_de_genero' => 'genero',
+    'sexo' => 'sexo',
+    'escolaridade' => 'escola',
+    'periodo_da_escola' => 'periodo',
+    'rg' => 'rg',
+    'cpf' => 'cpf',
+    'data_nasc' => 'dataNascimento',
+    'idade' => 'idade',
+    'idade_e_mes' => 'idade_mes',
+    'cep' => 'cep',
+    'logradouro' => 'rua',
+    'n_res' => 'numero',
+    'complemento' => 'complemento',
+    'localidade' => 'cidade',
+    'bairro' => 'bairro',
+    'celular' => 'celular',
+    'cel_responsavel' => 'telefone',
+    'nome_do_responsavel' => 'responsavel',
+    'nome_para_recado' => 'nome_recado',
+    'tel_recado' => 'telefone_recado',
+    'voce_esta_cursando_ou_ja_fez_algum_curso_relacionado_as_disciplinas_da_sodiprom' => 'curso_relacionado_sodiprom',
+    'possui_algum_curso_qual' => 'possui_curso',
+    'feira' => 'feira',
+    'infor' => 'informatica',
+    'log' => 'logistica',
+    'mat' => 'matematica',
+    'rh' => 'rh',
+    'ta' => 'tec_adm',
+    'media_final_disciplinas' => 'media_disciplinas',
+    'media_final_comportamento' => 'media_comportamento',
+    'coluna1' => 'coluna1',
+    'selo' => 'selo',
+    'observacoes_da_equipe_pedagogica' => 'observacoes',
+    'ocorrencias' => 'ocorrencias',
+    'sugestoes_de_areas_de_atuacao' => 'areas_atuacao',
+];
+
+
+        if (isset($manualMap[$col])) {
+            $columnMap[$idx] = $manualMap[$col];
+            continue;
+        }
+
+        // Se existir igual no banco
+        if (in_array($col, $dbColumns)) {
+            $columnMap[$idx] = $col;
+        }
+    }
+
+    // COLUNAS ESSENCIAIS
+    $required = ['codigo_matricula', 'nomeCompleto', 'dataNascimento'];
+    $found = array_values($columnMap);
+    $missing = array_diff($required, $found);
+
+    if (!empty($missing)) {
+        return back()->with('error',
+            'O CSV está faltando colunas obrigatórias: ' . implode(', ', $missing)
+        );
+    }
+
+    // ====================================
+    // 2. PROCESSAR AS LINHAS
+    // ====================================
+    $results = ['success' => 0, 'updated' => 0, 'errors' => []];
+    $lineNumber = 1;
+
+    while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+        $lineNumber++;
+        $data = [];
+
+        foreach ($columnMap as $i => $dbColumn) {
+            $data[$dbColumn] = trim($row[$i] ?? '');
+        }
+
+        if (empty(array_filter($data))) {
+            continue;
+        }
+
+        $codigo = $data['codigo_matricula'] ?? null;
+
+        if (!$codigo) {
+            $results['errors'][] = "Linha {$lineNumber}: faltando código de matrícula.";
+            continue;
+        }
+
+        $response = $this->processAlunoLine($data, $codigo, $lineNumber);
+
+        if ($response['status'] === 'created') $results['success']++;
+        if ($response['status'] === 'updated') $results['updated']++;
+        if ($response['status'] === 'error')
+            $results['errors'] = array_merge($results['errors'], $response['errors']);
+    }
+
+    fclose($handle);
+
+    // ====================================
+    // 3. RETORNO
+    // ====================================
+    $msg = "Importação concluída: {$results['success']} criados, {$results['updated']} atualizados.";
+
+    if (!empty($results['errors'])) {
+        return back()->with('error', $msg)
+            ->with('import_errors', $results['errors']);
+    }
+
+    return back()->with('success', $msg);
+}
+
+
     /**
-     * Exibe o formulário de cadastro de um novo aluno (aluno.create).
+     * Lógica para processar a criação ou atualização de um aluno.
+     * @param array $data Dados da linha CSV.
+     * @param string $codigoMatricula Código de Matrícula.
+     * @param int $lineNumber Número da linha no CSV.
+     * @return array Status e possíveis erros.
      */
+    protected function processAlunoLine(array $data, string $codigoMatricula, int $lineNumber): array
+    {
+        $errors = [];
+        $aluno = null;
+        $status = 'error';
+
+        try {
+            // 1. Tentar encontrar Turma ID
+            $turmaId = Turma::findTurmaIdByCodigoAluno($codigoMatricula);
+
+            if (!$turmaId) {
+                // Loga um erro se a turma não puder ser identificada/criada.
+                $errors[] = "Linha {$lineNumber} (Código: {$codigoMatricula}): Turma não pôde ser identificada (código inválido) ou criada.";
+                return ['status' => 'error', 'errors' => $errors];
+            }
+
+            // 2. Preparar dados para o Aluno (adiciona turma_id)
+            $data['turma_id'] = $turmaId;
+
+            // 3. Sanear dados (conversão de booleanos, datas, etc.)
+
+            // Converte Data de Nascimento (Esperando formato dd/mm/yyyy ou yyyy-mm-dd)
+            if (!empty($data['dataNascimento'])) {
+                // Tenta primeiro dd/mm/yyyy
+                try {
+                    $date = Carbon::createFromFormat('d/m/Y', $data['dataNascimento']);
+                } catch (\Exception $e) {
+                    // Se falhar, tenta yyyy-mm-dd
+                    try {
+                        $date = Carbon::createFromFormat('Y-m-d', $data['dataNascimento']);
+                    } catch (\Exception $e) {
+                        $date = null; // Falha na conversão
+                    }
+                }
+
+                if ($date) {
+                    $data['dataNascimento'] = $date->format('Y-m-d');
+                } else {
+                    $errors[] = "Linha {$lineNumber} (Código: {$codigoMatricula}): Data de nascimento inválida (Formato esperado: dd/mm/aaaa ou aaaa-mm-dd).";
+                }
+            } else {
+                $errors[] = "Linha {$lineNumber} (Código: {$codigoMatricula}): Data de nascimento é obrigatória.";
+            }
+
+            // Se houve erro na data, retorna antes de validar o resto
+            if (!empty($errors)) {
+                return ['status' => 'error', 'errors' => $errors];
+            }
+
+
+            // Validação simples e sanitização (o Mutator no Model Aluno fará o resto)
+            $validator = Validator::make($data, [
+                'codigo_matricula' => 'required|string|max:100',
+                'nomeCompleto' => 'required|string|max:191',
+                'dataNascimento' => 'required|date',
+                'email' => 'nullable|email|max:191',
+                'cpf' => 'nullable|string|max:14', // A sanitização ocorre no Model
+            ]);
+
+            if ($validator->fails()) {
+                $validationErrors = $validator->errors()->all();
+                $errors[] = "Linha {$lineNumber} (Código: {$codigoMatricula}): Erros de validação - " . implode(', ', $validationErrors);
+                return ['status' => 'error', 'errors' => $errors];
+            }
+
+            // Remove campos que não estão no fillable ou que são apenas Accessors
+            unset($data['idade']); // 'idade' é um Accessor no Model
+
+            // 4. Criação ou Atualização do Aluno
+            $aluno = Aluno::where('codigo_matricula', $codigoMatricula)->first();
+
+            if ($aluno) {
+                // Atualiza o aluno existente
+                $aluno->update($data);
+                $status = 'updated';
+            } else {
+                // Cria um novo aluno
+                $aluno = Aluno::create($data);
+                $status = 'created';
+            }
+
+            return ['status' => $status, 'errors' => $errors];
+        } catch (ValidationException $e) {
+            // Erros de validação
+            $validationErrors = $e->errors();
+            foreach ($validationErrors as $field => $messages) {
+                $errors[] = "Linha {$lineNumber} (Código: {$codigoMatricula}): Erro no campo '{$field}' - " . implode(', ', $messages);
+            }
+            return ['status' => 'error', 'errors' => $errors];
+        } catch (\Exception $e) {
+            // Outros erros, como problemas no DB
+            Log::error("Erro de Importação na Linha {$lineNumber} para Código {$codigoMatricula}: " . $e->getMessage());
+            $errors[] = "Linha {$lineNumber} (Código: {$codigoMatricula}): Erro fatal ao salvar: " . $e->getMessage();
+            return ['status' => 'error', 'errors' => $errors];
+        }
+    }
+
+    // ==========================================================
+    // MÉTODOS CRUD CORRIGIDOS
+    // ==========================================================
+
     public function create()
     {
-        // Necessário para o dropdown de Turmas
+        // Retorna a view de criação de aluno.
         $turmas = Turma::orderBy('ano_letivo', 'desc')->orderBy('letra', 'asc')->get();
-        // Necessário para o dropdown de Familiares (Opcional se for linkar aluno a familiar existente)
-        $familiares = Familiar::orderBy('nomeCompleto', 'asc')->get(); 
-
-        return view('alunos.create', compact('turmas', 'familiares'));
+        return view('alunos.create', compact('turmas'));
     }
 
-    /**
-     * Armazena um novo aluno no banco de dados.
-     */
     public function store(Request $request)
     {
+        // 🚨 PASSO ESSENCIAL: Prepara campos booleanos ausentes
+        $this->prepareBooleanFields($request);
+
+        // 1. Validação Completa
         $validatedData = $request->validate([
-            'turma_id' => 'required|exists:turmas,id',
-            'nomeCompleto' => 'required|string|max:255',
+            // CAMPOS OBRIGATÓRIOS (Resolve: "The [field] field is required.")
+            // 'turma_id' => 'required|exists:turmas,id',
+            'nomeCompleto' => 'required|string|max:191',
+            'codigo_matricula' => 'nullable',
+            'dataNascimento' => 'required|date',
+            'declaracao_consentimento' => 'required|boolean', // Agora garantido pelo prepareBooleanFields
+
+            // Outros Campos (Booleanos marcados como 'boolean' após a injeção do 0)
             'cpf' => 'nullable|string|max:14|unique:alunos,cpf',
+            'email' => 'nullable|email|max:191',
+            'nomeSocial' => 'nullable|string|max:191',
             'rg' => 'nullable|string|max:20',
-            'dataNascimento' => 'nullable|date',
-            'telefone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255|unique:alunos,email',
-            // Adicionar campos necessários do seu formulário
+            'mao_dominante' => 'nullable|string|max:50',
+
+            // Dados de Trabalho (jaTrabalhou é 'required' por ser um campo de escolha obrigatória)
+            'jaTrabalhou' => 'required|boolean',
+            'carteiraTrabalho' => 'nullable|boolean',
+            'ctpsAssinada' => 'nullable|boolean',
+            'qualFuncao' => 'nullable|string|max:191',
+
+            // Endereço e Contato
             'cep' => 'nullable|string|max:10',
-            'endereco' => 'nullable|string|max:255',
-            'bairro' => 'nullable|string|max:100',
-            'cidade' => 'nullable|string|max:100',
+            'rua' => 'nullable|string|max:191',
+            'numero' => 'nullable|string|max:20',
+            'complemento' => 'nullable|string|max:191',
+            'bairro' => 'nullable|string|max:191',
+            'cidade' => 'nullable|string|max:191',
             'uf' => 'nullable|string|max:2',
-            'bolsa_familia' => 'nullable|string|max:10', // Exemplo
+            'telefone' => 'nullable|string|max:20',
+            'celular' => 'nullable|string|max:20',
+
+            // Escolaridade
+            'escola' => 'nullable|string|max:191',
+            'ano' => 'nullable|string|max:50',
+            'concluido' => 'nullable|boolean',
+            'periodo' => 'nullable|string|max:50',
+            'anoConclusao' => 'nullable|integer|digits:4',
+            'cursoAtual' => 'nullable|string|max:191',
+
+            // Socioeconômico e Saúde (Booleanos)
+            'moradia' => 'nullable|string|max:50',
+            'moradia_porquem' => 'nullable|string|max:191',
+            'beneficio' => 'nullable|boolean',
+            'bolsa_familia' => 'nullable|numeric',
+            'bpc_loas' => 'nullable|numeric',
+            'pensao' => 'nullable|numeric',
+            'aux_aluguel' => 'nullable|numeric',
+            'renda_cidada' => 'nullable|numeric',
+            'outros' => 'nullable|numeric',
+            'agua' => 'nullable|numeric',
+            'alimentacao' => 'nullable|numeric',
+            'gas' => 'nullable|numeric',
+            'luz' => 'nullable|numeric',
+            'medicamento' => 'nullable|numeric',
+            'telefone_internet' => 'nullable|numeric',
+            'aluguel_financiamento' => 'nullable|numeric',
+            'observacoes' => 'nullable|string',
+            'familiares_json' => 'nullable|json',
+
+            'ubs' => 'nullable|string|max:191',
+            'convenio' => 'nullable|boolean',
+            'qual_convenio' => 'nullable|string|max:191',
+            'vacinacao' => 'nullable|boolean',
+            'queixa_saude' => 'nullable|boolean',
+            'qual_queixa' => 'nullable|string|max:191',
+            'alergia' => 'nullable|boolean',
+            'qual_alergia' => 'nullable|string|max:191',
+            'tratamento' => 'nullable|boolean',
+            'qual_tratamento' => 'nullable|string|max:191',
+            'uso_remedio' => 'nullable|boolean',
+            'qual_remedio' => 'nullable|string|max:191',
+            'cirurgia' => 'nullable|boolean',
+            'motivo_cirurgia' => 'nullable|string|max:191',
+            'pcd' => 'nullable|boolean',
+            'qual_pcd' => 'nullable|string|max:191',
+            'necessidade_especial' => 'nullable|string|max:191',
+            'doenca_congenita' => 'nullable|boolean',
+            'qual_doenca_congenita' => 'nullable|string|max:191',
+            'psicologo' => 'nullable|boolean',
+            'quando_psicologo' => 'nullable|string|max:191',
+            'convulsao' => 'nullable|boolean',
+            'quando_convulsao' => 'nullable|string|max:191',
+
+            // Psicossocial
+            'familia_doenca' => 'nullable|boolean',
+            'qual_familia_doenca' => 'nullable|string|max:191',
+            'familia_depressao' => 'nullable|boolean',
+            'quem_familia_depressao' => 'nullable|string|max:191',
+            'medico_especialista' => 'nullable|boolean',
+            'qual_medico_especialista' => 'nullable|string|max:191',
+            'familia_psicologico' => 'nullable|boolean',
+            'quem_familia_psicologico' => 'nullable|string|max:191',
+            'familia_alcool' => 'nullable|boolean',
+            'quem_familia_alcool' => 'nullable|string|max:191',
+            'familia_drogas' => 'nullable|boolean',
+            'quem_familia_drogas' => 'nullable|string|max:191',
+
+            // Assinatura
+            'assinatura' => 'nullable|string',
         ]);
 
-        // 1. Encontra os dados da turma para gerar o código do aluno
-        $turma = Turma::findOrFail($validatedData['turma_id']);
-        
-        // 2. Conta quantos alunos já existem nesta turma para determinar o sequencial
-        $sequencial = $turma->alunos()->count() + 1;
-        $sequencialFormatado = str_pad($sequencial, 3, '0', STR_PAD_LEFT);
 
-        // 3. Gera o codigoAluno no formato AAAA-S-T-XXX
-        $codigoAluno = "{$turma->ano_letivo}-{$turma->periodo}-{$turma->letra}-{$sequencialFormatado}";
-
-        $validatedData['codigoAluno'] = $codigoAluno;
-        $validatedData['user_id'] = auth()->id() ?? 1; // ID do usuário que criou o registro
-
-        // Cria o aluno
+        // 2. Criação do Aluno
         $aluno = Aluno::create($validatedData);
 
-        return redirect()->route('aluno.index')->with('success', "Aluno {$aluno->nomeCompleto} cadastrado com sucesso na Turma {$turma->getNomeCompletoAttribute()}.");
+        // 3. Processamento de Familiares (mantido)
+        if ($request->filled('familiares_json')) {
+            $familiares = json_decode($request->familiares_json, true);
+            if ($familiares) {
+                $familiares = array_filter($familiares, function ($f) {
+                    return array_filter($f);
+                });
+
+                foreach ($familiares as $familiarData) {
+                    if (!empty($familiarData['nomeCompleto']) && !empty($familiarData['parentesco'])) {
+                        $aluno->familiares()->create($familiarData);
+                    }
+                }
+            }
+        }
+
+        return redirect()->route('aluno.index')->with('success', 'Aluno criado com sucesso.');
     }
 
-    /**
-     * Exibe o perfil detalhado de um aluno, carregando todos os seus dados relacionados.
-     * Implementa o 'aluno.show'
-     */
     public function show(Aluno $aluno)
     {
-        // Carrega os relacionamentos necessários para a view de dashboard/perfil
-        $aluno->load([
-            'turma', 
-            'familiares', 
-            'user' 
-        ]);
-
+        // Retorna a view de visualização do aluno.
+        $aluno->load('familiares');
         return view('alunos.show', compact('aluno'));
     }
-    
-    /**
-     * Exibe o formulário para edição do aluno.
-     */
+
     public function edit(Aluno $aluno)
     {
+        // Retorna a view de edição do aluno.
         $turmas = Turma::orderBy('ano_letivo', 'desc')->orderBy('letra', 'asc')->get();
-        $familiares = Familiar::orderBy('nomeCompleto', 'asc')->get(); 
-
-        return view('alunos.edit', compact('aluno', 'turmas', 'familiares'));
+        $aluno->load('familiares');
+        return view('alunos.edit', compact('aluno', 'turmas'));
     }
 
-    /**
-     * Atualiza o aluno no banco de dados.
-     */
     public function update(Request $request, Aluno $aluno)
     {
+        // 🚨 PASSO ESSENCIAL: Prepara campos booleanos ausentes
+        $this->prepareBooleanFields($request);
+
+        // 1. Validação Completa (Ajustada para update com 'unique' ignorando o aluno atual)
         $validatedData = $request->validate([
+            // CAMPOS OBRIGATÓRIOS (Resolve: "The [field] field is required.")
             'turma_id' => 'required|exists:turmas,id',
-            'nomeCompleto' => 'required|string|max:255',
-            // O CPF e E-mail devem ser únicos, exceto para o aluno atual
-            'cpf' => 'nullable|string|max:14|unique:alunos,cpf,' . $aluno->id, 
-            'email' => 'nullable|email|max:255|unique:alunos,email,' . $aluno->id,
+            'nomeCompleto' => 'required|string|max:191',
+            // O código de matrícula e CPF devem ser únicos, exceto para o próprio aluno
+            'codigo_matricula' => 'required|string|max:100|unique:alunos,codigo_matricula,' . $aluno->id,
+            'dataNascimento' => 'required|date',
+            'declaracao_consentimento' => 'required|boolean',
+
+            // Outros Campos (Booleanos marcados como 'boolean' após a injeção do 0)
+            'cpf' => 'nullable|string|max:14|unique:alunos,cpf,' . $aluno->id,
+            'email' => 'nullable|email|max:191',
+            'nomeSocial' => 'nullable|string|max:191',
             'rg' => 'nullable|string|max:20',
-            'dataNascimento' => 'nullable|date',
-            'telefone' => 'nullable|string|max:20',
-            // Adicionar campos necessários do seu formulário
+            'mao_dominante' => 'nullable|string|max:50',
+
+            // Dados de Trabalho 
+            'jaTrabalhou' => 'required|boolean',
+            'carteiraTrabalho' => 'nullable|boolean',
+            'ctpsAssinada' => 'nullable|boolean',
+            'qualFuncao' => 'nullable|string|max:191',
+
+            // Endereço e Contato
             'cep' => 'nullable|string|max:10',
-            'endereco' => 'nullable|string|max:255',
-            'bairro' => 'nullable|string|max:100',
-            'cidade' => 'nullable|string|max:100',
+            'rua' => 'nullable|string|max:191',
+            'numero' => 'nullable|string|max:20',
+            'complemento' => 'nullable|string|max:191',
+            'bairro' => 'nullable|string|max:191',
+            'cidade' => 'nullable|string|max:191',
             'uf' => 'nullable|string|max:2',
-            'bolsa_familia' => 'nullable|string|max:10', 
-            // O codigoAluno não deve ser alterado manualmente aqui
+            'telefone' => 'nullable|string|max:20',
+            'celular' => 'nullable|string|max:20',
+
+            // Escolaridade
+            'escola' => 'nullable|string|max:191',
+            'ano' => 'nullable|string|max:50',
+            'concluido' => 'nullable|boolean',
+            'periodo' => 'nullable|string|max:50',
+            'anoConclusao' => 'nullable|integer|digits:4',
+            'cursoAtual' => 'nullable|string|max:191',
+
+            // Socioeconômico e Saúde (Booleanos)
+            'moradia' => 'nullable|string|max:50',
+            'moradia_porquem' => 'nullable|string|max:191',
+            'beneficio' => 'nullable|boolean',
+            'bolsa_familia' => 'nullable|numeric',
+            'bpc_loas' => 'nullable|numeric',
+            'pensao' => 'nullable|numeric',
+            'aux_aluguel' => 'nullable|numeric',
+            'renda_cidada' => 'nullable|numeric',
+            'outros' => 'nullable|numeric',
+            'agua' => 'nullable|numeric',
+            'alimentacao' => 'nullable|numeric',
+            'gas' => 'nullable|numeric',
+            'luz' => 'nullable|numeric',
+            'medicamento' => 'nullable|numeric',
+            'telefone_internet' => 'nullable|numeric',
+            'aluguel_financiamento' => 'nullable|numeric',
+            'observacoes' => 'nullable|string',
+            'familiares_json' => 'nullable|json',
+
+            'ubs' => 'nullable|string|max:191',
+            'convenio' => 'nullable|boolean',
+            'qual_convenio' => 'nullable|string|max:191',
+            'vacinacao' => 'nullable|boolean',
+            'queixa_saude' => 'nullable|boolean',
+            'qual_queixa' => 'nullable|string|max:191',
+            'alergia' => 'nullable|boolean',
+            'qual_alergia' => 'nullable|string|max:191',
+            'tratamento' => 'nullable|boolean',
+            'qual_tratamento' => 'nullable|string|max:191',
+            'uso_remedio' => 'nullable|boolean',
+            'qual_remedio' => 'nullable|string|max:191',
+            'cirurgia' => 'nullable|boolean',
+            'motivo_cirurgia' => 'nullable|string|max:191',
+            'pcd' => 'nullable|boolean',
+            'qual_pcd' => 'nullable|string|max:191',
+            'necessidade_especial' => 'nullable|string|max:191',
+            'doenca_congenita' => 'nullable|boolean',
+            'qual_doenca_congenita' => 'nullable|string|max:191',
+            'psicologo' => 'nullable|boolean',
+            'quando_psicologo' => 'nullable|string|max:191',
+            'convulsao' => 'nullable|boolean',
+            'quando_convulsao' => 'nullable|string|max:191',
+
+            // Psicossocial
+            'familia_doenca' => 'nullable|boolean',
+            'qual_familia_doenca' => 'nullable|string|max:191',
+            'familia_depressao' => 'nullable|boolean',
+            'quem_familia_depressao' => 'nullable|string|max:191',
+            'medico_especialista' => 'nullable|boolean',
+            'qual_medico_especialista' => 'nullable|string|max:191',
+            'familia_psicologico' => 'nullable|boolean',
+            'quem_familia_psicologico' => 'nullable|string|max:191',
+            'familia_alcool' => 'nullable|boolean',
+            'quem_familia_alcool' => 'nullable|string|max:191',
+            'familia_drogas' => 'nullable|boolean',
+            'quem_familia_drogas' => 'nullable|string|max:191',
+
+            // Assinatura
+            'assinatura' => 'nullable|string',
         ]);
-        
+
+        // 2. Atualização do Aluno
         $aluno->update($validatedData);
 
-        return redirect()->route('aluno.index')->with('success', "Aluno {$aluno->nomeCompleto} atualizado com sucesso.");
+        // 3. Processamento de Familiares (mantido)
+        if ($request->filled('familiares_json')) {
+            $aluno->familiares()->delete();
+
+            $familiares = json_decode($request->familiares_json, true);
+            if ($familiares) {
+                $familiares = array_filter($familiares, function ($f) {
+                    return array_filter($f);
+                });
+
+                foreach ($familiares as $familiarData) {
+                    if (!empty($familiarData['nomeCompleto']) && !empty($familiarData['parentesco'])) {
+                        $aluno->familiares()->create($familiarData);
+                    }
+                }
+            }
+        }
+
+        return redirect()->route('aluno.edit', $aluno)->with('success', 'Aluno atualizado com sucesso.');
     }
-    
-    /**
-     * Remove o aluno do banco de dados.
-     */
+
     public function destroy(Aluno $aluno)
     {
-        try {
-            $aluno->delete();
-            return redirect()->route('aluno.index')->with('success', 'Aluno excluído com sucesso.');
-        } catch (\Exception $e) {
-            return redirect()->route('aluno.index')->with('error', 'Erro ao excluir o aluno: ' . $e->getMessage());
-        }
-    }
-
-
-    // ==========================================================
-    // MÉTODOS RELACIONADOS À IMPORTAÇÃO
-    // ==========================================================
-
-    /**
-     * Exibe o formulário de importação (Upload CSV)
-     */
-    public function showImportForm()
-    {
-        return view('alunos.import');
-    }
-
-    /**
-     * Processa o arquivo CSV e salva os dados dos alunos.
-     */
-    public function import(Request $request)
-    {
-        $request->validate([
-            'csv_file' => 'required|file|mimes:csv,txt|max:10240', // 10MB
-        ]);
-
-        $file = $request->file('csv_file');
-        $filePath = $file->getRealPath();
-        $errors = [];
-        $successCount = 0;
-        
-        $validationRules = [
-            'nomeCompleto' => 'required|string|max:255',
-            'cpf' => 'nullable|string|max:14', 
-            'rg' => 'nullable|string|max:20',
-            'dataNascimento' => 'nullable|date_format:Y-m-d',
-            'email' => 'nullable|email|max:255', 
-        ];
-
-        // CORREÇÃO 1: Delimitador ajustado para ponto e vírgula, padrão em CSVs brasileiros
-        $delimiter = ';';
-
-        if (($handle = fopen($filePath, 'r')) !== FALSE) {
-            // Lê o cabeçalho (primeira linha) usando o delimitador correto
-            $header = fgetcsv($handle, 1000, $delimiter);
-            
-            // Mapeamento dos cabeçalhos do CSV para os campos do DB
-            $columnMap = [
-                'CÓDIGO ALUNO' => 'codigoAluno',
-                'NOME ALUNO' => 'nomeCompleto',
-                'CPF' => 'cpf',
-                'RG' => 'rg',
-                'DATA DE NASCIMENTO' => 'dataNascimento',
-                'TELEFONE' => 'telefone',
-                'EMAIL' => 'email',
-                'SEXO' => 'sexo',
-                'CEP' => 'cep',
-                'ENDERECO' => 'endereco',
-                'BAIRRO' => 'bairro',
-                'CIDADE' => 'cidade',
-                'UF' => 'uf',
-                'BOLSA FAMILIA' => 'bolsa_familia',
-            ];
-
-            $mappedHeader = [];
-            foreach ($header as $colIndex => $colName) {
-                // CORREÇÃO 2: Padronização robusta que permite espaços múltiplos ou leading/trailing spaces,
-                // garantindo que "CÓDIGO ALUNO" lido do CSV encontre a chave "CÓDIGO ALUNO" no map.
-                $standardizedName = Str::upper(preg_replace('/\s+/', ' ', trim($colName)));
-
-                if (isset($columnMap[$standardizedName])) {
-                    $mappedHeader[$colIndex] = $columnMap[$standardizedName];
-                }
-            }
-
-            $line = 1; 
-            DB::beginTransaction();
-            
-            try {
-                while (($row = fgetcsv($handle, 1000, $delimiter)) !== FALSE) { // Usa o delimitador correto
-                    $line++;
-                    
-                    $rowData = [];
-                    foreach ($row as $colIndex => $value) {
-                        if (isset($mappedHeader[$colIndex])) {
-                            $rowData[$mappedHeader[$colIndex]] = $value;
-                        }
-                    }
-
-                    // A linha de verificação que estava falhando (agora com a lógica correta)
-                    $codigoAluno = $rowData['codigoAluno'] ?? null;
-                    if (empty($codigoAluno)) {
-                         $errors[] = "Linha {$line}: Código do aluno (codigoAluno) está faltando. Verifique se o valor na primeira coluna está vazio.";
-                         continue; 
-                    }
-                    
-                    // Adicionamos a validação do codigoAluno aqui antes de passar para o handleCsvRow
-                    $validationRules['codigoAluno'] = 'required|string|max:20';
-                    
-                    $result = $this->handleCsvRow($rowData, $validationRules, $line);
-                    
-                    if ($result['status'] === 'success') {
-                        $successCount++;
-                    } else {
-                        $errors = array_merge($errors, $result['errors']);
-                    }
-                }
-                
-                fclose($handle);
-                
-                if (empty($errors)) {
-                    DB::commit();
-                    return redirect()->route('aluno.index')->with('success', "Importação concluída: {$successCount} alunos processados com sucesso.");
-                } else {
-                    DB::rollBack();
-                    return redirect()->route('aluno.import.form')->with('error', 'Importação concluída, mas com erros. Por favor, verifique a lista de erros abaixo.')->with('import_errors', $errors);
-                }
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-                Log::error('Erro fatal na importação: ' . $e->getMessage());
-                return redirect()->route('aluno.import.form')->with('error', 'Erro fatal durante a importação: ' . $e->getMessage());
-            }
-        }
-        
-        return redirect()->route('aluno.import.form')->with('error', 'Não foi possível ler o arquivo CSV.');
-    }
-
-    /**
-     * Lógica para processar cada linha do CSV.
-     */
-    protected function handleCsvRow(array $rowData, array $validationRules, int $lineNumber): array
-    {
-        $errors = [];
-
-        // 1. OBTENÇÃO DA TURMA (CHAVE PRINCIPAL)
-        $codigoAluno = $rowData['codigoAluno'] ?? null;
-        // A verificação de $codigoAluno é feita no método import(), mas a mantemos aqui por segurança.
-        if (!$codigoAluno) { 
-             // Este erro não deve ser atingido se o import() estiver correto.
-             $errors[] = "Linha {$lineNumber}: Código do aluno (codigoAluno) está faltando.";
-             return ['status' => 'error', 'errors' => $errors];
-        }
-
-
-        // Usa o método estático do modelo Turma para encontrar o ID
-        // **IMPORTANTE**: Assumo que Turma::findTurmaIdByCodigoAluno está implementado e funcional.
-        $turmaId = Turma::findTurmaIdByCodigoAluno($codigoAluno); 
-
-        if (!$turmaId) {
-            $errors[] = "Linha {$lineNumber}: Turma não encontrada para o código '{$codigoAluno}'. Verifique se a Turma (Ano-Periodo-Letra) existe.";
-            return ['status' => 'error', 'errors' => $errors];
-        }
-
-        // 2. PREPARAÇÃO E TRATAMENTO DOS DADOS
-
-        // Trata a data de nascimento (assume o formato dd/mm/aaaa)
-        if (isset($rowData['dataNascimento']) && 
-            !empty($rowData['dataNascimento']) &&
-            preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', trim($rowData['dataNascimento']), $matches)) 
-        {
-             // Converte dd/mm/yyyy para yyyy-mm-dd
-             $rowData['dataNascimento'] = "{$matches[3]}-{$matches[2]}-{$matches[1]}";
-        }
-
-        // Remove chaves do CSV que não estão no modelo Aluno (ex: cabeçalhos não mapeados)
-        $alunoData = array_intersect_key($rowData, array_flip(array_keys($validationRules)));
-        $alunoData['turma_id'] = $turmaId;
-        $alunoData['codigoAluno'] = $codigoAluno;
-        $alunoData['user_id'] = auth()->id() ?? 1;
-
-
-        // 3. VALIDAÇÃO
-
-        $alunoExistente = Aluno::where('codigoAluno', $codigoAluno)->first();
-
-        $finalValidationRules = $validationRules;
-        if ($alunoExistente) {
-            // Se o aluno existe, a regra de unicidade do CPF e Email deve ignorar o ID dele
-            $finalValidationRules['cpf'] = 'nullable|string|max:14|unique:alunos,cpf,' . $alunoExistente->id;
-            $finalValidationRules['email'] = 'nullable|email|max:255|unique:alunos,email,' . $alunoExistente->id;
-        } else {
-             // Se for um novo aluno, aplica a regra de unicidade normalmente
-            $finalValidationRules['cpf'] = 'nullable|string|max:14|unique:alunos,cpf';
-            $finalValidationRules['email'] = 'nullable|email|max:255|unique:alunos,email';
-        }
-
-        $validator = Validator::make($alunoData, $finalValidationRules);
-
-        if ($validator->fails()) {
-            $messages = $validator->errors()->all();
-            foreach ($messages as $msg) {
-                $errors[] = "Linha {$lineNumber}: " . $msg;
-            }
-            return ['status' => 'error', 'errors' => $errors];
-        }
-
-        // 4. Criação/Atualização do Aluno
-        try {
-            if ($alunoExistente) {
-                // Atualiza (não mexe no user_id)
-                unset($alunoData['user_id']); 
-                $alunoExistente->update($alunoData);
-            } else {
-                // Cria um novo
-                Aluno::create($alunoData);
-            }
-
-            return ['status' => 'success'];
-        } catch (\Exception $e) {
-            Log::error("Erro ao salvar aluno na linha {$lineNumber}: " . $e->getMessage());
-            $errors[] = "Linha {$lineNumber}: Erro ao salvar o aluno: " . $e->getMessage();
-            return ['status' => 'error', 'errors' => $errors];
-        }
+        // A Turma e os Familiares associados devem ser tratados via Foreign Keys/Cascata no DB
+        $aluno->delete();
+        return redirect()->route('aluno.index')->with('success', 'Aluno excluído com sucesso.');
     }
 }
