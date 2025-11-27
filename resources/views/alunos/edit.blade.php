@@ -1,19 +1,19 @@
-@extends('layouts.app') 
+@extends('layouts.app')
 
 @section('content')
 <div class="container">
     <div class="row">
         <div class="col-md-12">
-            <h1>Editar Aluno: {{ $aluno->nomeCompleto }}</h1>
+            <h1 style="color: black !important;">Editar Aluno: {{ $aluno->nomeCompleto }}</h1>
             <p class="lead">ID: {{ $aluno->id }} | Turma: {{ $aluno->turma->nomeCompleto ?? 'Não Atribuída' }}</p>
         </div>
     </div>
 
     @if (session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
+    <div class="alert alert-success">{{ session('success') }}</div>
     @endif
     @if (session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
+    <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
 
     <ul class="nav nav-tabs mb-4" id="alunoTab" role="tablist">
@@ -27,13 +27,13 @@
     </ul>
 
     <div class="tab-content" id="alunoTabContent">
-        
+
         <div class="tab-pane fade show active" id="dados" role="tabpanel" aria-labelledby="dados-tab">
-            
+
             <form action="{{ route('aluno.update', $aluno) }}" method="POST">
                 @csrf
-                @method('PUT') 
-                
+                @method('PUT')
+
                 <div class="card p-4 shadow-sm">
                     <h3>Informações Pessoais</h3>
                     <hr>
@@ -62,9 +62,9 @@
                             <select id="turma_id" name="turma_id" class="form-control @error('turma_id') is-invalid @enderror">
                                 <option value="">Nenhuma Turma</option>
                                 @foreach ($turmas as $id => $nome)
-                                    <option value="{{ $id }}" {{ old('turma_id', $aluno->turma_id) == $id ? 'selected' : '' }}>
-                                        {{ $nome }}
-                                    </option>
+                                <option value="{{ $id }}" {{ old('turma_id', $aluno->turma_id) == $id ? 'selected' : '' }}>
+                                    {{ $nome }}
+                                </option>
                                 @endforeach
                             </select>
                             @error('turma_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -80,7 +80,7 @@
                     </div>
 
                     {{-- Outros campos importantes do aluno aqui (Endereço, Histórico Escolar, etc.) --}}
-                    
+
                     <div class="form-group">
                         <label for="observacoes">Observações</label>
                         <textarea class="form-control" id="observacoes" name="observacoes" rows="3">{{ old('observacoes', $aluno->observacoes) }}</textarea>
@@ -94,12 +94,12 @@
             </form>
 
         </div>
-        
+
         <div class="tab-pane fade" id="familiares" role="tabpanel" aria-labelledby="familiares-tab">
             <div class="card p-4 shadow-sm">
                 <h3>Adicionar Novo Familiar</h3>
                 <hr>
-                
+
                 <form action="{{ route('familiar.store', $aluno) }}" method="POST">
                     @csrf
                     <div class="form-row">
@@ -133,42 +133,42 @@
 
                 <h4 class="mt-5">Familiares Registrados</h4>
                 <hr>
-                
+
                 @if($aluno->familiares->isEmpty())
-                    <p class="text-info">Nenhum familiar cadastrado para este aluno.</p>
+                <p class="text-info">Nenhum familiar cadastrado para este aluno.</p>
                 @else
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Parentesco</th>
-                                <th>Idade</th>
-                                <th>Profissão</th>
-                                <th>Renda Base</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($aluno->familiares as $familiar)
-                                <tr>
-                                    <td>{{ $familiar->nomeCompleto }}</td>
-                                    <td>{{ $familiar->parentesco }}</td>
-                                    <td>{{ $familiar->idade ?? '--' }}</td>
-                                    <td>{{ $familiar->profissao ?? '--' }}</td>
-                                    <td>R$ {{ number_format($familiar->salarioBase, 2, ',', '.') }}</td>
-                                    <td>
-                                        <form action="{{ route('familiar.destroy', $familiar) }}" method="POST" style="display:inline;">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Tem certeza que deseja remover este familiar?')">
-                                                Remover
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Parentesco</th>
+                            <th>Idade</th>
+                            <th>Profissão</th>
+                            <th>Renda Base</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($aluno->familiares as $familiar)
+                        <tr>
+                            <td>{{ $familiar->nomeCompleto }}</td>
+                            <td>{{ $familiar->parentesco }}</td>
+                            <td>{{ $familiar->idade ?? '--' }}</td>
+                            <td>{{ $familiar->profissao ?? '--' }}</td>
+                            <td>R$ {{ number_format($familiar->salarioBase, 2, ',', '.') }}</td>
+                            <td>
+                                <form action="{{ route('familiar.destroy', $familiar) }}" method="POST" style="display:inline;">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Tem certeza que deseja remover este familiar?')">
+                                        Remover
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
                 @endif
             </div>
         </div>
@@ -180,13 +180,13 @@
 {{-- Script JS para a funcionalidade das abas (se estiver usando Bootstrap 4) --}}
 @push('scripts')
 <script>
-    $(document).ready(function(){
+    $(document).ready(function() {
         // Ativa o toggle da aba
-        $('#alunoTab a').on('click', function (e) {
+        $('#alunoTab a').on('click', function(e) {
             e.preventDefault()
             $(this).tab('show')
         })
-        
+
         // Mantém a aba ativa após um refresh (útil para erros de validação)
         var hash = window.location.hash;
         if (hash) {

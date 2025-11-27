@@ -63,6 +63,7 @@ class Aluno extends Model
         'turma_id',
         'observacoes',
         'user_id', 
+        'declaracao_consentimento',
     ];
     
     // Campos que devem ser tratados como booleanos no mutator (mesmo que venham como string)

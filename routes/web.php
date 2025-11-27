@@ -89,7 +89,7 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::post('alunos/importar', [ImportController::class, 'import']) // ✅ CORRIGIDO
         ->middleware('role:coordenacao')
         ->name('aluno.import.store');
-    Route::get('alunos/create', [AlunoController::class, 'create'])->name('aluno.create');
+ 
 
     // 2. ROTAS ESPECÍFICAS COM PARÂMETRO
     Route::get('alunos/{aluno}/edit', [AlunoController::class, 'edit'])->name('aluno.edit');
