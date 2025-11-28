@@ -10,16 +10,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
-// Removidos os 'use's de Str, Log e Collection, que eram usados apenas na importação.
 
 class AlunoController extends Controller
 {
     // ==========================================================
     // 💡 MÉTODO HELPER
-    // Necessário para garantir que os campos booleanos ausentes (checkboxes)
-    // recebam o valor '0' (false) no Request antes da validação.
+    // Garante que checkboxes ausentes enviem 0, antes da validação.
+    // Também converte 'on', '1', 'true' etc para 1 quando presente.
     // ==========================================================
-    protected function prepareBooleanFields(Request $request)
+    protected function prepareBooleanFields(Request $request): void
     {
         $booleanFields = [
             'declaracao_consentimento', 'carteira_trabalho', 'ja_trabalhou', 'ctps_assinada',
@@ -30,13 +29,25 @@ class AlunoController extends Controller
         ];
 
         foreach ($booleanFields as $field) {
-            // Se o campo não está presente no request (checkbox desmarcado), defina-o como 0.
+            // Se não enviado (checkbox desmarcado) -> garante 0
             if (!$request->has($field)) {
                 $request->merge([$field => 0]);
+            } else {
+                // Se enviado, normalize para valores aceitos (0 ou 1)
+                // $request->boolean() será usado depois na transformação final,
+                // aqui mantemos para garantir consistência no request.
+                $val = $request->input($field);
+                // normalize common truthy strings
+                if (in_array($val, ['on', 'true', '1', 1, true, 'sim'], true)) {
+                    $request->merge([$field => 1]);
+                } else {
+                    // qualquer outro valor -> 0
+                    $request->merge([$field => 0]);
+                }
             }
         }
     }
-   
+
     // ==========================================================
     // MÉTODOS CRUD PADRÃO
     // ==========================================================
@@ -44,23 +55,21 @@ class AlunoController extends Controller
     public function index(Request $request)
     {
         // 1. DADOS PARA FILTROS E VIEW
-        // Garante que estas variáveis existem para popular os filtros da view
         $turmas = Turma::orderBy('ano_letivo', 'desc')->get();
-        // Assume que anosLetivos e Periodos são coleções simples para o filtro
         $anosLetivos = Turma::select('ano_letivo')->distinct()->pluck('ano_letivo')->sortDesc();
         $periodos = Turma::select('periodo')->distinct()->pluck('periodo')->sort();
 
-
         // 2. INÍCIO DA QUERY
-        // Carrega a relação 'turma' para evitar o problema de N+1
-        $query = Aluno::query()->with('turma'); 
+        $query = Aluno::query()->with('turma');
 
-        // 3. FILTRAGEM
+        // 3. FILTRAGEM (agrupando ORs corretamente)
         if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where('nomeCompleto', 'like', "%{$search}%")
+            $query->where(function ($q) use ($search) {
+                $q->where('nomeCompleto', 'like', "%{$search}%")
                   ->orWhere('codigo_matricula', 'like', "%{$search}%")
                   ->orWhere('cpf', 'like', "%{$search}%");
+            });
         }
 
         if ($request->filled('turma_id')) {
@@ -68,26 +77,22 @@ class AlunoController extends Controller
         }
 
         if ($request->filled('ano_letivo')) {
-             // Filtra por Turmas que tenham o ano letivo selecionado
-             $query->whereHas('turma', function ($q) use ($request) {
-                 $q->where('ano_letivo', $request->input('ano_letivo'));
-             });
+            $query->whereHas('turma', function ($q) use ($request) {
+                $q->where('ano_letivo', $request->input('ano_letivo'));
+            });
         }
-        
+
         if ($request->filled('periodo')) {
-             // Filtra por Turmas que tenham o período selecionado
-             $query->whereHas('turma', function ($q) use ($request) {
-                 $q->where('periodo', $request->input('periodo'));
-             });
+            $query->whereHas('turma', function ($q) use ($request) {
+                $q->where('periodo', $request->input('periodo'));
+            });
         }
 
-
-        // 4. ORDERING (Ajustado para segurança contra dados nulos)
+        // 4. ORDERING
         $sortColumn = $request->get('sort', 'codigo_matricula');
         $sortDirection = $request->get('direction', 'asc');
-        $safeSortColumns = ['codigo_matricula', 'nomeCompleto', 'turma_id', 'status']; // dataNascimento removido por segurança inicial
+        $safeSortColumns = ['codigo_matricula', 'nomeCompleto', 'turma_id', 'status'];
 
-        // Aplica a ordenação se for uma coluna segura. Caso contrário, usa o padrão.
         if (in_array($sortColumn, $safeSortColumns)) {
             $query->orderBy($sortColumn, $sortDirection);
         } else {
@@ -95,8 +100,7 @@ class AlunoController extends Controller
         }
 
         // 5. EXECUÇÃO DA QUERY E PAGINAÇÃO
-        $alunos = $query->paginate(20)->withQueryString(); 
-        // ->withQueryString() mantém os filtros ativos ao mudar de página
+        $alunos = $query->paginate(20)->withQueryString();
 
         // 6. RETORNO DA VIEW
         return view('alunos.index', compact('alunos', 'turmas', 'anosLetivos', 'periodos'));
@@ -110,15 +114,17 @@ class AlunoController extends Controller
 
     public function store(Request $request)
     {
+        // Normaliza checkboxes ausentes
         $this->prepareBooleanFields($request);
 
+        // VALIDAÇÃO (turma_id NÃO obrigatório)
         $validatedData = $request->validate([
             // CAMPOS PRINCIPAIS
-            'turma_id' => 'required|exists:turmas,id',
+            'turma_id' => 'nullable|exists:turmas,id',
             'nomeCompleto' => 'required|string|max:191',
             'codigo_matricula' => 'nullable|string|max:100|unique:alunos,codigo_matricula',
             'dataNascimento' => 'required|date',
-            'declaracao_consentimento' => 'required|boolean',
+            'declaracao_consentimento' => 'nullable|boolean',
 
             // CAMPOS PESSOAIS E DE CONTATO
             'cpf' => 'nullable|string|max:14|unique:alunos,cpf',
@@ -128,11 +134,11 @@ class AlunoController extends Controller
             'mao_dominante' => 'nullable|string|max:50',
             'telefone' => 'nullable|string|max:20',
             'celular' => 'nullable|string|max:20',
-            
+
             // DADOS DE TRABALHO
-            'jaTrabalhou' => 'required|boolean',
-            'carteiraTrabalho' => 'nullable|boolean',
-            'ctpsAssinada' => 'nullable|boolean',
+            'ja_trabalhou' => 'nullable|boolean',
+            'carteira_trabalho' => 'nullable|boolean',
+            'ctps_assinada' => 'nullable|boolean',
             'qualFuncao' => 'nullable|string|max:191',
 
             // ENDEREÇO
@@ -144,10 +150,12 @@ class AlunoController extends Controller
             // ESCOLARIDADE
             'escola' => 'nullable|string|max:191', 'ano' => 'nullable|string|max:50',
             'concluido' => 'nullable|boolean', 'periodo' => 'nullable|string|max:50',
-            'anoConclusao' => 'nullable|integer|digits:4', 'cursoAtual' => 'nullable|string|max:191',
+            'anoConclusao' => 'nullable|string|max:4|regex:/^\\d{4}$/',
+            'cursoAtual' => 'nullable|string|max:191',
 
             // SOCIOECONÔMICO E SAÚDE
-            'moradia' => 'nullable|string|max:50', 'moradia_porquem' => 'nullable|string|max:191',
+            'moradia' => 'nullable|string|max:50', 
+            'moradia_porquem' => 'nullable|string|max:191',
             'beneficio' => 'nullable|boolean',
             'bolsa_familia' => 'nullable|numeric', 'bpc_loas' => 'nullable|numeric',
             'pensao' => 'nullable|numeric', 'aux_aluguel' => 'nullable|numeric',
@@ -184,24 +192,71 @@ class AlunoController extends Controller
             'assinatura' => 'nullable|string',
         ]);
 
+        // ==========================================================
+        // NORMALIZAÇÕES E LIMPEZAS (após validação)
+        // ==========================================================
+        // Converte booleans para 0/1 usando $request->boolean (respeita prepareBooleanFields)
+        $booleanFields = [
+            'declaracao_consentimento', 'carteira_trabalho', 'ja_trabalhou', 'ctps_assinada',
+            'concluido', 'beneficio', 'convenio', 'vacinacao', 'queixa_saude', 'alergia',
+            'tratamento', 'uso_remedio', 'cirurgia', 'pcd', 'doenca_congenita', 'psicologo',
+            'convulsao', 'familia_doenca', 'familia_depressao', 'medico_especialista',
+            'familia_psicologico', 'familia_alcool', 'familia_drogas'
+        ];
 
-        $aluno = Aluno::create($validatedData);
+        foreach ($booleanFields as $f) {
+            $validatedData[$f] = $request->boolean($f);
+        }
 
-        // Processamento de Familiares (Criação)
-        if ($request->filled('familiares_json')) {
-            $familiares = json_decode($request->familiares_json, true);
-            if ($familiares) {
-                $familiares = array_filter($familiares, fn($f) => array_filter($f));
+        // Sanitiza CPF e RG se existirem
+        if (isset($validatedData['cpf'])) {
+            $validatedData['cpf'] = preg_replace('/[^0-9]/', '', $validatedData['cpf']);
+        }
+        if (isset($validatedData['rg'])) {
+            $validatedData['rg'] = preg_replace('/[^a-zA-Z0-9]/', '', $validatedData['rg']);
+        }
 
-                foreach ($familiares as $familiarData) {
-                    if (!empty($familiarData['nomeCompleto']) && !empty($familiarData['parentesco'])) {
-                        $aluno->familiares()->create($familiarData);
-                    }
-                }
+        // Normaliza data (garante formato Y-m-d)
+        if (!empty($validatedData['dataNascimento'])) {
+            try {
+                $validatedData['dataNascimento'] = Carbon::parse($validatedData['dataNascimento'])->format('Y-m-d');
+            } catch (\Exception $e) {
+                // se parsing falhar, deixa como está (já passou na validação)
             }
         }
 
-        return redirect()->route('aluno.index')->with('success', 'Aluno criado com sucesso.');
+        // ==========================================================
+        // SALVA ALUNO E FAMILIARES (TRANSAÇÃO)
+        // ==========================================================
+        DB::beginTransaction();
+        try {
+            $aluno = Aluno::create($validatedData);
+
+            // Processamento de Familiares (Criação)
+            if ($request->filled('familiares_json')) {
+                $familiares = json_decode($request->familiares_json, true);
+                if ($familiares && is_array($familiares)) {
+                    $familiares = array_filter($familiares, fn ($f) => array_filter($f));
+
+                    foreach ($familiares as $familiarData) {
+                        if (!empty($familiarData['nomeCompleto']) && !empty($familiarData['parentesco'])) {
+                            // sanitiza salario se vier como string
+                            if (!empty($familiarData['salarioBase'])) {
+                                $familiarData['salarioBase'] = (float) str_replace(',', '.', str_replace('.', '', $familiarData['salarioBase']));
+                            }
+                            $aluno->familiares()->create($familiarData);
+                        }
+                    }
+                }
+            }
+
+            DB::commit();
+            return redirect()->route('aluno.index')->with('success', 'Aluno criado com sucesso.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            // opcional: log do erro aqui
+            return back()->with('error', 'Erro ao salvar aluno: ' . $e->getMessage())->withInput();
+        }
     }
 
     public function show(Aluno $aluno)
@@ -219,29 +274,30 @@ class AlunoController extends Controller
 
     public function update(Request $request, Aluno $aluno)
     {
+        // Normaliza checkboxes ausentes
         $this->prepareBooleanFields($request);
 
         $validatedData = $request->validate([
-            // CAMPOS PRINCIPAIS (Com regra de unique para IGNORAR o próprio aluno)
-            'turma_id' => 'required|exists:turmas,id',
+            // CAMPOS PRINCIPAIS (turma_id NÃO obrigatório para update também)
+            'turma_id' => 'nullable|exists:turmas,id',
             'nomeCompleto' => 'required|string|max:191',
-            'codigo_matricula' => 'required|string|max:100|unique:alunos,codigo_matricula,' . $aluno->id, 
+            'codigo_matricula' => 'nullable|string|max:100|unique:alunos,codigo_matricula,' . $aluno->id,
             'dataNascimento' => 'required|date',
-            'declaracao_consentimento' => 'required|boolean',
+            'declaracao_consentimento' => 'nullable|boolean',
 
             // CAMPOS PESSOAIS E DE CONTATO
-            'cpf' => 'nullable|string|max:14|unique:alunos,cpf,' . $aluno->id, 
+            'cpf' => 'nullable|string|max:14|unique:alunos,cpf,' . $aluno->id,
             'email' => 'nullable|email|max:191',
             'nomeSocial' => 'nullable|string|max:191',
             'rg' => 'nullable|string|max:20',
             'mao_dominante' => 'nullable|string|max:50',
             'telefone' => 'nullable|string|max:20',
             'celular' => 'nullable|string|max:20',
-            
+
             // DADOS DE TRABALHO
-            'jaTrabalhou' => 'required|boolean',
-            'carteiraTrabalho' => 'nullable|boolean',
-            'ctpsAssinada' => 'nullable|boolean',
+            'ja_trabalhou' => 'nullable|boolean',
+            'carteira_trabalho' => 'nullable|boolean',
+            'ctps_assinada' => 'nullable|boolean',
             'qualFuncao' => 'nullable|string|max:191',
 
             // ENDEREÇO
@@ -253,7 +309,8 @@ class AlunoController extends Controller
             // ESCOLARIDADE
             'escola' => 'nullable|string|max:191', 'ano' => 'nullable|string|max:50',
             'concluido' => 'nullable|boolean', 'periodo' => 'nullable|string|max:50',
-            'anoConclusao' => 'nullable|integer|digits:4', 'cursoAtual' => 'nullable|string|max:191',
+            'anoConclusao' => 'nullable|digits:4',
+            'cursoAtual' => 'nullable|string|max:191',
 
             // SOCIOECONÔMICO E SAÚDE
             'moradia' => 'nullable|string|max:50', 'moradia_porquem' => 'nullable|string|max:191',
@@ -293,25 +350,69 @@ class AlunoController extends Controller
             'assinatura' => 'nullable|string',
         ]);
 
-        $aluno->update($validatedData);
+        // ==========================================================
+        // NORMALIZAÇÕES E LIMPEZAS (após validação)
+        // ==========================================================
+        $booleanFields = [
+            'declaracao_consentimento', 'carteira_trabalho', 'ja_trabalhou', 'ctps_assinada',
+            'concluido', 'beneficio', 'convenio', 'vacinacao', 'queixa_saude', 'alergia',
+            'tratamento', 'uso_remedio', 'cirurgia', 'pcd', 'doenca_congenita', 'psicologo',
+            'convulsao', 'familia_doenca', 'familia_depressao', 'medico_especialista',
+            'familia_psicologico', 'familia_alcool', 'familia_drogas'
+        ];
 
-        // Processamento de Familiares (Deleta e recria para atualização)
-        if ($request->filled('familiares_json')) {
-            $aluno->familiares()->delete();
+        foreach ($booleanFields as $f) {
+            $validatedData[$f] = $request->boolean($f);
+        }
 
-            $familiares = json_decode($request->familiares_json, true);
-            if ($familiares) {
-                $familiares = array_filter($familiares, fn($f) => array_filter($f));
+        if (isset($validatedData['cpf'])) {
+            $validatedData['cpf'] = preg_replace('/[^0-9]/', '', $validatedData['cpf']);
+        }
+        if (isset($validatedData['rg'])) {
+            $validatedData['rg'] = preg_replace('/[^a-zA-Z0-9]/', '', $validatedData['rg']);
+        }
 
-                foreach ($familiares as $familiarData) {
-                    if (!empty($familiarData['nomeCompleto']) && !empty($familiarData['parentesco'])) {
-                        $aluno->familiares()->create($familiarData);
-                    }
-                }
+        if (!empty($validatedData['dataNascimento'])) {
+            try {
+                $validatedData['dataNascimento'] = Carbon::parse($validatedData['dataNascimento'])->format('Y-m-d');
+            } catch (\Exception $e) {
+                // não fatal - já validado
             }
         }
 
-        return redirect()->route('aluno.edit', $aluno)->with('success', 'Aluno atualizado com sucesso.');
+        // ==========================================================
+        // ATUALIZA ALUNO E FAMILIARES (TRANSAÇÃO)
+        // ==========================================================
+        DB::beginTransaction();
+        try {
+            $aluno->update($validatedData);
+
+            // Processamento de Familiares (Deleta e recria para atualização)
+            if ($request->filled('familiares_json')) {
+                $aluno->familiares()->delete();
+
+                $familiares = json_decode($request->familiares_json, true);
+                if ($familiares && is_array($familiares)) {
+                    $familiares = array_filter($familiares, fn ($f) => array_filter($f));
+
+                    foreach ($familiares as $familiarData) {
+                        if (!empty($familiarData['nomeCompleto']) && !empty($familiarData['parentesco'])) {
+                            if (!empty($familiarData['salarioBase'])) {
+                                $familiarData['salarioBase'] = (float) str_replace(',', '.', str_replace('.', '', $familiarData['salarioBase']));
+                            }
+                            $aluno->familiares()->create($familiarData);
+                        }
+                    }
+                }
+            }
+
+            DB::commit();
+            return redirect()->route('aluno.edit', $aluno)->with('success', 'Aluno atualizado com sucesso.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            // opcional: log do erro aqui
+            return back()->with('error', 'Erro ao atualizar aluno: ' . $e->getMessage())->withInput();
+        }
     }
 
     public function destroy(Aluno $aluno)

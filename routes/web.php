@@ -12,8 +12,8 @@ use App\Http\Controllers\ProgramaController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\FormacaoController;
 use App\Http\Controllers\ChamadaController;
-use App\Http\Controllers\FamiliarController; 
-use App\Http\Controllers\TurmaController; 
+use App\Http\Controllers\FamiliarController;
+use App\Http\Controllers\TurmaController;
 use App\Models\Presenca;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +24,9 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
+Route::get('/welcome', function () {
+    return view('welcome');
+})->name('welcome');
 // =========================================================================
 // 1. ROTAS DE ACESSO GERAL (Sem autenticação)
 // =========================================================================
@@ -81,7 +84,7 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     // ==========================================================
     // 🧑‍🎓 ROTAS DE GERENCIAMENTO DE ALUNOS (CRUD e Importação)
     // ==========================================================
-    
+
     // 1. ROTAS ESTÁTICAS E ESPECÍFICAS
     Route::get('alunos/importar', [ImportController::class, 'showImportForm']) // ✅ CORRIGIDO
         ->middleware('role:coordenacao')
@@ -89,7 +92,7 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::post('alunos/importar', [ImportController::class, 'import']) // ✅ CORRIGIDO
         ->middleware('role:coordenacao')
         ->name('aluno.import.store');
- 
+
 
     // 2. ROTAS ESPECÍFICAS COM PARÂMETRO
     Route::get('alunos/{aluno}/edit', [AlunoController::class, 'edit'])->name('aluno.edit');
@@ -130,7 +133,7 @@ Route::middleware(['auth', 'check.status'])->group(function () {
     Route::get('/usuarios', [UsuarioController::class, 'index'])
         ->middleware('role:coordenacao')
         ->name('usuarios.index');
-    
+
     // ==========================================================
     // 🏫 ROTAS DE TURMAS (CRUD Completo) - Recurso que estava faltando!
     // ==========================================================
@@ -189,5 +192,4 @@ Route::middleware(['auth', 'check.status'])->group(function () {
             Route::get('certificado', [FormacaoController::class, 'indexCertificado'])->name('certificado.index');
             Route::get('importar-dados', [FormacaoController::class, 'indexImportar'])->name('importar.index');
         });
-
 });

@@ -1,12 +1,17 @@
 <nav class="navbar default-layout-navbar col-lg-12 col-12 p-0 d-flex flex-row fixed-top">
-    <div class="text-center navbar-brand-wrapper d-flex align-items-center justify-content-start">
-        <a class="navbar-brand brand-logo" href="{{ route('painel.coordenacao') }}">
-            <img src="{{ asset('assets/images/logo.png') }}" alt="logo">
-        </a>
-        <a class="navbar-brand brand-logo-mini" href="{{ route('painel.coordenacao') }}">
-            <img src="{{ asset('assets/images/favicon.png') }}" alt="logo">
-        </a>
-    </div>
+    <div class="text-center navbar-brand-wrapper d-flex align-items-center justify-content-start"
+     style="padding-top: 6px;">
+    <a class="navbar-brand brand-logo" href="{{ route('painel.coordenacao') }}">
+        <img src="{{ asset('assets/images/logo.png') }}"
+            alt="logo"
+            style="width:180px; height:auto;">
+    </a>
+    <a class="navbar-brand brand-logo-mini" href="{{ route('painel.coordenacao') }}">
+        <img src="{{ asset('assets/images/favicon.png') }}"
+            alt="logo"
+            style="width:45px; height:auto;">
+    </a>
+</div>
     <div class="navbar-menu-wrapper d-flex align-items-stretch">
         <button class="navbar-toggler navbar-toggler align-self-center" type="button" data-toggle="minimize">
             <span class="mdi mdi-menu"></span>
@@ -31,7 +36,7 @@
                         <span class="availability-status online"></span>
                     </div>
                     <div class="nav-profile-text">
-                      <p class="mb-1 text-black">{{ Auth::user()->nomeCompleto }}</p>
+                        <p class="mb-1 text-black">{{ Auth::user()->nomeCompleto }}</p>
                     </div>
                 </a>
                 <div class="dropdown-menu navbar-dropdown" aria-labelledby="profileDropdown">
@@ -39,8 +44,8 @@
                         <i class="mdi mdi-cached me-2 text-success"></i> Activity Log
                     </a>
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="{{ route('logout') }}" 
-                       onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                    <a class="dropdown-item" href="{{ route('logout') }}"
+                        onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                         <i class="mdi mdi-logout me-2 text-primary"></i> Sair
                     </a>
                     <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
